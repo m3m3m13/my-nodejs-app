@@ -1,4 +1,21 @@
+// .devcontainer/devcontainer.json
 {
-  "image": "mcr.microsoft.com/devcontainers/universal:2",
-  "features": "ghcr.io/devcontainers/features/node:1"
+    "name": "Node.js",
+    "image": "mcr.microsoft.com/devcontainers/javascript-node:18", // или другая версия
+    "features": {
+        // "ghcr.io/devcontainers/features/docker-in-docker:1": {} // Если вы хотите использовать Docker внутри Codespace
+    },
+    "extensions": [
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode"
+    ],
+    "postCreateCommand": "npm install", // Эта команда установит зависимости из package.json
+    "forwardPorts": [3000], // Это автоматически пробросит порт 3000
+    "customizations": {
+        "vscode": {
+            "settings": {
+                "terminal.integrated.defaultProfile.linux": "bash"
+            }
+        }
+    }
 }
