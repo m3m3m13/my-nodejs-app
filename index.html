@@ -123,6 +123,7 @@
     </div>
 
     <script>
+        // Global variables for the scene
         let scene, camera, renderer, house, particles = [], player;
         let isMouseDown = false, mouseX = 0, mouseY = 0;
         let cameraAngleX = 0.3, cameraAngleY = 0;
@@ -141,39 +142,44 @@
         let transitionSpeed = 0.02; 
         let targetTransitionProgress = 1; 
 
+        // Day and Night settings for lighting and fog
         const daySettings = {
-            fogColor: 0xA0D0FF, 
-            clearColor: 0xA0D0FF, 
-            ambientIntensity: 0.4, 
-            directionalColor: 0xffffff,
-            directionalIntensity: 0.8, 
-            directionalPosition: new THREE.Vector3(10, 15, 10),
-            hemisphereSkyColor: 0xC0E0FF, 
-            hemisphereGroundColor: 0xA9D9A9, 
-            hemisphereIntensity: 0.6, 
-            windowLightIntensity: 0.0 
+            fogColor: 0xA0D0FF, // Light blue fog
+            clearColor: 0xA0D0FF, // Sky blue clear color
+            ambientIntensity: 0.4, // Moderate ambient light
+            directionalColor: 0xffffff, // White sunlight
+            directionalIntensity: 0.8, // Strong sunlight
+            directionalPosition: new THREE.Vector3(10, 15, 10), // Sun position
+            hemisphereSkyColor: 0xC0E0FF, // Light blue sky for hemisphere
+            hemisphereGroundColor: 0xA9D9A9, // Light green ground for hemisphere
+            hemisphereIntensity: 0.6, // Moderate hemisphere light
+            windowLightIntensity: 0.0 // Windows off during day
         };
 
         const nightSettings = {
-            fogColor: 0x101040, 
-            clearColor: 0x101040, 
-            ambientIntensity: 0.25, 
-            directionalColor: 0x404080, 
-            directionalIntensity: 0.3, 
-            directionalPosition: new THREE.Vector3(-10, 15, -10),
-            hemisphereSkyColor: 0x202050, 
-            hemisphereGroundColor: 0x101010, 
-            hemisphereIntensity: 0.2, 
-            windowLightIntensity: 2.0 
+            fogColor: 0x101040, // Dark blue/purple fog
+            clearColor: 0x101040, // Dark blue/purple clear color
+            ambientIntensity: 0.25, // Dim ambient light
+            directionalColor: 0x404080, // Bluish moonlight
+            directionalIntensity: 0.3, // Dim moonlight
+            directionalPosition: new THREE.Vector3(-10, 15, -10), // Moon position
+            hemisphereSkyColor: 0x202050, // Dark blue sky for hemisphere
+            hemisphereGroundColor: 0x101010, // Very dark ground for hemisphere
+            hemisphereIntensity: 0.2, // Very dim hemisphere light
+            windowLightIntensity: 2.0 // Windows on during night
         };
 
         const textureLoader = new THREE.TextureLoader();
 
-        // --- Helper Functions (defined before init) ---
+        // --- Helper Functions (defined before init for proper scope) ---
 
+        /**
+         * Creates the main house model with walls, roof, door, handle, windows, and chimney.
+         */
         function createHouse() {
             house = new THREE.Group();
 
+            // Load brick texture for walls
             const brickTexture = textureLoader.load('https://threejs.org/examples/textures/brick_diffuse.jpg',
                 function (texture) {
                     texture.wrapS = texture.wrapT = THREE.RepeatWrapping; 
@@ -184,12 +190,12 @@
                 undefined,
                 function (err) {
                     console.error('Ошибка загрузки текстуры кирпича:', err);
-                    wallMaterial.color.set(0x8B4513); 
+                    wallMaterial.color.set(0x8B4513); // Fallback color if texture fails
                     wallMaterial.needsUpdate = true;
                 }
             );
 
-            // Revert house walls to original size
+            // Walls
             const wallGeometry = new THREE.BoxGeometry(4, 3, 4); 
             const wallMaterial = new THREE.MeshStandardMaterial({ color: 0xF5DEB3, roughness: 0.8, metalness: 0.1 });
             const walls = new THREE.Mesh(wallGeometry, wallMaterial);
@@ -198,15 +204,16 @@
             walls.receiveShadow = true;
             house.add(walls);
 
-            // Revert roof to original size and shape
+            // Roof
             const roofGeometry = new THREE.ConeGeometry(3.5, 2, 4);
             const roofMaterial = new THREE.MeshStandardMaterial({ color: 0x8B0000, roughness: 0.7, metalness: 0.0 });
             const roof = new THREE.Mesh(roofGeometry, roofMaterial);
             roof.position.y = 4;
-            roof.rotation.y = Math.PI / 4; // Revert rotation
+            roof.rotation.y = Math.PI / 4; 
             roof.castShadow = true;
             house.add(roof);
 
+            // Door
             const doorGeometry = new THREE.BoxGeometry(0.8, 1.8, 0.1);
             const doorMaterial = new THREE.MeshStandardMaterial({ color: 0x4A4A4A, roughness: 0.6, metalness: 0.0 });
             const door = new THREE.Mesh(doorGeometry, doorMaterial);
@@ -214,6 +221,7 @@
             door.castShadow = true;
             house.add(door);
 
+            // Door handle
             const handleGeometry = new THREE.SphereGeometry(0.05);
             const handleMaterial = new THREE.MeshStandardMaterial({ color: 0xFFD700, roughness: 0.3, metalness: 0.8 });
             const handle = new THREE.Mesh(handleGeometry, handleMaterial);
@@ -221,15 +229,16 @@
             handle.castShadow = true;
             house.add(handle);
 
+            // Windows
             const windowGeometry = new THREE.BoxGeometry(0.8, 0.8, 0.1);
             const windowMaterial = new THREE.MeshStandardMaterial({ color: 0x87CEEB, transparent: true, opacity: 0.7, roughness: 0.2, metalness: 0.1 });
             
-            // Revert to one front window
+            // Front window
             const frontWindow = new THREE.Mesh(windowGeometry, windowMaterial);
             frontWindow.position.set(1.2, 1.8, 2.05); 
             frontWindow.castShadow = true;
             house.add(frontWindow);
-            // Clear windowLights and add only one for the front window
+            // Point light for the front window
             windowLights = []; 
             const frontWindowLight = new THREE.PointLight(0xFFE0B2, daySettings.windowLightIntensity, 5); 
             frontWindowLight.position.set(1.2, 1.8, 1.95); 
@@ -237,32 +246,37 @@
             house.add(frontWindowLight);
             windowLights.push(frontWindowLight); 
 
-
+            // Side window
             const sideWindow = new THREE.Mesh(windowGeometry, windowMaterial);
-            sideWindow.position.set(2.05, 1.8, 0); // Side window
+            sideWindow.position.set(2.05, 1.8, 0); 
             sideWindow.rotation.y = Math.PI / 2; 
             sideWindow.castShadow = true;
             house.add(sideWindow);
-
+            // Point light for the side window
             const sideWindowLight = new THREE.PointLight(0xFFE0B2, daySettings.windowLightIntensity, 5); 
             sideWindowLight.position.set(1.95, 1.8, 0); 
             sideWindowLight.castShadow = true;
             house.add(sideWindowLight);
             windowLights.push(sideWindowLight); 
 
+            // Chimney
             const chimneyGeometry = new THREE.BoxGeometry(0.6, 1.5, 0.6);
             const chimneyMaterial = new THREE.MeshStandardMaterial({ color: 0x696969, roughness: 0.7, metalness: 0.0 });
             const chimney = new THREE.Mesh(chimneyGeometry, chimneyMaterial);
-            chimney.position.set(-1.2, 4.5, -1.2); // Revert chimney position
+            chimney.position.set(-1.2, 4.5, -1.2); 
             chimney.castShadow = true;
             house.add(chimney);
 
             scene.add(house);
         }
 
+        /**
+         * Creates the player character.
+         */
         function createPlayer() {
             player = new THREE.Group();
 
+            // Body
             const bodyGeometry = new THREE.CylinderGeometry(0.3, 0.3, 1.2);
             const bodyMaterial = new THREE.MeshStandardMaterial({ color: 0x4169E1, roughness: 0.5 });
             const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
@@ -270,6 +284,7 @@
             body.castShadow = true;
             player.add(body);
 
+            // Head
             const headGeometry = new THREE.SphereGeometry(0.25);
             const headMaterial = new THREE.MeshStandardMaterial({ color: 0xFFDBB3, roughness: 0.6 });
             const head = new THREE.Mesh(headGeometry, headMaterial);
@@ -277,6 +292,7 @@
             head.castShadow = true;
             player.add(head);
 
+            // Eyes
             const eyeGeometry = new THREE.SphereGeometry(0.05);
             const eyeMaterial = new THREE.MeshBasicMaterial({ color: 0x000000 });
 
@@ -288,6 +304,7 @@
             rightEye.position.set(0.1, 1.5, 0.2); 
             player.add(rightEye);
 
+            // Arms
             const armGeometry = new THREE.CylinderGeometry(0.08, 0.08, 0.8);
             const armMaterial = new THREE.MeshStandardMaterial({ color: 0xFFDBB3, roughness: 0.6 });
 
@@ -301,6 +318,7 @@
             rightArm.castShadow = true;
             player.add(rightArm);
 
+            // Legs
             const legGeometry = new THREE.CylinderGeometry(0.1, 0.1, 0.8); 
             const legMaterial = new THREE.MeshStandardMaterial({ color: 0x654321, roughness: 0.7 });
 
@@ -320,6 +338,9 @@
             scene.add(player);
         }
 
+        /**
+         * Creates the ground plane.
+         */
         function createGround() {
             const groundGeometry = new THREE.PlaneGeometry(100, 100); 
             const groundMaterial = new THREE.MeshStandardMaterial({ color: 0x90EE90, roughness: 0.9, metalness: 0.0 });
@@ -329,12 +350,14 @@
             scene.add(ground);
         }
 
+        /**
+         * Creates various types of trees (deciduous and fir) and places them, avoiding the house and lake.
+         */
         function createTrees() {
-            const numDeciduousTrees = 30; // Number of deciduous trees
-            const numFirTrees = 40;     // Number of fir trees
+            const numDeciduousTrees = 30; 
+            const numFirTrees = 40;     
 
             // Define house bounding box for collision detection
-            // House dimensions: width 4, depth 4. Position: (0, 0, 0)
             const houseMinX = -2;
             const houseMaxX = 2;
             const houseMinZ = -2;
@@ -463,6 +486,9 @@
             }
         }
 
+        /**
+         * Creates the lake with fish.
+         */
         function createLake() {
             const shapePoints = [
                 new THREE.Vector2(0, 15),
@@ -480,12 +506,13 @@
             const lakeShape = new THREE.Shape(shapePoints);
             const lakeGeometry = new THREE.ShapeGeometry(lakeShape); 
             
+            // Water material with transparency and reflectivity
             const waterMaterial = new THREE.MeshStandardMaterial({
                 color: 0x0066FF, 
                 transparent: true,
                 opacity: 0.7,
-                roughness: 0.1, 
-                metalness: 0.8, 
+                roughness: 0.1, // Low roughness for more reflection
+                metalness: 0.8, // High metalness for more reflection
                 side: THREE.DoubleSide 
             });
             const lake = new THREE.Mesh(lakeGeometry, waterMaterial);
@@ -493,6 +520,7 @@
             lake.position.set(30, 0.01, 0); 
             scene.add(lake);
 
+            // Fish
             const numFish = 10;
             const fishGeometry = new THREE.BoxGeometry(0.5, 0.2, 0.2); 
             const fishMaterial = new THREE.MeshStandardMaterial({ color: 0xFF8C00 }); 
@@ -517,6 +545,9 @@
             }
         }
 
+        /**
+         * Creates vegetation around the lake (bushes and reeds).
+         */
         function createLakeVegetation() {
             const lakeCenter = new THREE.Vector3(30, 0, 0); 
             const lakeRadius = 15; 
@@ -571,16 +602,18 @@
             }
         }
 
+        /**
+         * Creates a pier and a boat on the lake.
+         */
         function createPierAndBoat() {
-            const lakeCenter = new THREE.Vector3(30, 0.01, 0); // Center of the lake, Y = 0.01
+            const lakeCenter = new THREE.Vector3(30, 0.01, 0); 
 
             // Create pier
-            const pierMaterial = new THREE.MeshStandardMaterial({ color: 0x8B4513, roughness: 0.6 }); // Dark brown
+            const pierMaterial = new THREE.MeshStandardMaterial({ color: 0x8B4513, roughness: 0.6 }); 
             
             // Main part of the pier
-            const pierBaseGeometry = new THREE.BoxGeometry(1.5, 0.2, 5); // Width, height, length
+            const pierBaseGeometry = new THREE.BoxGeometry(1.5, 0.2, 5); 
             const pierBase = new THREE.Mesh(pierBaseGeometry, pierMaterial);
-            // Position the pier slightly above the lake level
             pierBase.position.set(lakeCenter.x + 10, lakeCenter.y + pierBaseGeometry.parameters.height / 2 + 0.01, lakeCenter.z + 10); 
             pierBase.castShadow = true;
             pierBase.receiveShadow = true;
@@ -590,7 +623,6 @@
             const pierLegGeometry = new THREE.CylinderGeometry(0.1, 0.1, 0.8, 8);
             for (let i = 0; i < 3; i++) {
                 const leg1 = new THREE.Mesh(pierLegGeometry, pierMaterial);
-                // Supports should go underwater
                 leg1.position.set(pierBase.position.x - 0.5, lakeCenter.y - 0.4, pierBase.position.z - 1.5 + i * 1.5);
                 leg1.castShadow = true;
                 scene.add(leg1);
@@ -603,44 +635,46 @@
 
             // Create boat
             const boat = new THREE.Group();
-            const boatMaterial = new THREE.MeshStandardMaterial({ color: 0x6A5ACD, roughness: 0.4, metalness: 0.1 }); // Bluish-purple
-            const boatInsideMaterial = new THREE.MeshStandardMaterial({ color: 0x8B4513, roughness: 0.6 }); // Inside of the boat
+            const boatMaterial = new THREE.MeshStandardMaterial({ color: 0x6A5ACD, roughness: 0.4, metalness: 0.1 }); 
+            const boatInsideMaterial = new THREE.MeshStandardMaterial({ color: 0x8B4513, roughness: 0.6 }); 
 
             // Boat hull (main part)
             const boatHullGeometry = new THREE.BoxGeometry(0.8, 0.3, 2.5);
             const boatHull = new THREE.Mesh(boatHullGeometry, boatMaterial);
-            boatHull.position.y = 0; // Center of the hull will be at the boat group's Y level
+            boatHull.position.y = 0; 
             boat.add(boatHull);
 
             // Boat front (cone or more complex shape)
-            const boatFrontGeometry = new THREE.ConeGeometry(0.4, 0.5, 4); // Radius, height, segments
+            const boatFrontGeometry = new THREE.ConeGeometry(0.4, 0.5, 4); 
             const boatFront = new THREE.Mesh(boatFrontGeometry, boatMaterial);
-            boatFront.rotation.x = Math.PI / 2; // Rotate to face forward
-            boatFront.position.set(0, 0, 1.25); // Position in front of the hull
+            boatFront.rotation.x = Math.PI / 2; 
+            boatFront.position.set(0, 0, 1.25); 
             boat.add(boatFront);
 
             // Inside part (seat)
             const seatGeometry = new THREE.BoxGeometry(0.6, 0.1, 0.5);
             const seat = new THREE.Mesh(seatGeometry, boatInsideMaterial);
-            seat.position.set(0, 0.1, 0); // Inside the hull, slightly above the bottom
+            seat.position.set(0, 0.1, 0); 
             boat.add(seat);
 
             // Position the boat at lake level
-            // Boat Y-position: lake level + half of the boat hull height
             boat.position.set(pierBase.position.x + 1.2, lakeCenter.y + boatHullGeometry.parameters.height / 2, pierBase.position.z + 1.5); 
-            boat.rotation.y = -Math.PI / 4; // Rotate the boat slightly
+            boat.rotation.y = -Math.PI / 4; 
             boat.castShadow = true;
             boat.receiveShadow = true;
             scene.add(boat);
         }
 
+        /**
+         * Creates a circular fence around the house.
+         */
         function createFence() {
-            const fenceRadius = 6; // Радиус круглого забора, чтобы он был недалеко от дома
+            const fenceRadius = 6; 
             const fenceHeight = 0.8;
             const postRadius = 0.08;
-            const numPosts = 16; // Количество столбов для круглого забора
+            const numPosts = 16; 
 
-            const fenceMaterial = new THREE.MeshStandardMaterial({ color: 0x8B4513, roughness: 0.7 }); // Коричневый цвет для забора
+            const fenceMaterial = new THREE.MeshStandardMaterial({ color: 0x8B4513, roughness: 0.7 }); 
 
             const posts = [];
             for (let i = 0; i < numPosts; i++) {
@@ -661,10 +695,13 @@
             });
         }
 
+        /**
+         * Creates rabbits with smooth forward/backward movement and bobbing.
+         */
         function createRabbits() {
-            const numRabbits = 3; // Reverted to 3 rabbits
-            const rabbitMaterial = new THREE.MeshStandardMaterial({ color: 0xF5F5DC, roughness: 0.7 }); // Бежевый/кремовый цвет
-            const rabbitScale = 0.333; // Scale factor (1/3 of original size)
+            const numRabbits = 3; 
+            const rabbitMaterial = new THREE.MeshStandardMaterial({ color: 0xF5F5DC, roughness: 0.7 }); 
+            const rabbitScale = 0.6; // Increased scale for better visibility
 
             // Define house and lake bounding boxes/circles for collision detection
             const houseMinX = -2;
@@ -675,11 +712,11 @@
             const lakeCenterX = 30;
             const lakeCenterZ = 0;
             const lakeRadius = 15;
-            const exclusionBuffer = 2; // Уменьшаем буфер, чтобы зайцы могли появляться ближе к дому/озеру
+            const exclusionBuffer = 2; // Buffer zone around the lake
 
             // Movement properties for rabbits (smooth oscillation)
             const rabbitOscillationSpeed = 0.001; // Slower speed for oscillation
-            const rabbitOscillationAmplitude = 2; // How far they move back and forth
+            const rabbitOscillationAmplitude = 5; // Increased amplitude for more noticeable movement
 
             for (let i = 0; i < numRabbits; i++) {
                 const rabbit = new THREE.Group();
@@ -687,7 +724,7 @@
                 let isValidPosition = false;
 
                 while (!isValidPosition) {
-                    rabbitX = -45 + Math.random() * 90; // Wide range
+                    rabbitX = -45 + Math.random() * 90; 
                     rabbitZ = -45 + Math.random() * 90;
 
                     // Check if the rabbit is too close to the house
@@ -709,8 +746,8 @@
                 // Body
                 const bodyGeometry = new THREE.SphereGeometry(0.8 * rabbitScale, 16, 8); 
                 const body = new THREE.Mesh(bodyGeometry, rabbitMaterial);
-                body.position.y = 0.4 * rabbitScale; 
-                body.scale.z = 1.5; // Elongate body (this scale is local to the body mesh)
+                body.position.y = 0.4 * rabbitScale; // Adjusted for new scale
+                body.scale.z = 1.5; 
                 body.castShadow = true;
                 body.receiveShadow = true;
                 rabbit.add(body);
@@ -718,20 +755,20 @@
                 // Head
                 const headGeometry = new THREE.SphereGeometry(0.5 * rabbitScale, 16, 8); 
                 const head = new THREE.Mesh(headGeometry, rabbitMaterial);
-                head.position.set(0.6 * rabbitScale, 0.8 * rabbitScale, 0); 
+                head.position.set(0.6 * rabbitScale, 0.8 * rabbitScale, 0); // Adjusted for new scale
                 head.castShadow = true;
                 rabbit.add(head);
 
                 // Ears
                 const earGeometry = new THREE.BoxGeometry(0.2 * rabbitScale, 1.2 * rabbitScale, 0.2 * rabbitScale); 
                 const leftEar = new THREE.Mesh(earGeometry, rabbitMaterial);
-                leftEar.position.set(0.7 * rabbitScale, 1.6 * rabbitScale, 0.3 * rabbitScale); 
+                leftEar.position.set(0.7 * rabbitScale, 1.6 * rabbitScale, 0.3 * rabbitScale); // Adjusted for new scale
                 leftEar.rotation.z = Math.PI / 10;
                 leftEar.castShadow = true;
                 rabbit.add(leftEar);
 
                 const rightEar = new THREE.Mesh(earGeometry, rabbitMaterial);
-                rightEar.position.set(0.7 * rabbitScale, 1.6 * rabbitScale, -0.3 * rabbitScale); 
+                rightEar.position.set(0.7 * rabbitScale, 1.6 * rabbitScale, -0.3 * rabbitScale); // Adjusted for new scale
                 rightEar.rotation.z = -Math.PI / 10;
                 rightEar.castShadow = true;
                 rabbit.add(rightEar);
@@ -740,15 +777,15 @@
                 const tailGeometry = new THREE.SphereGeometry(0.3 * rabbitScale, 8, 8); 
                 const tailMaterial = new THREE.MeshStandardMaterial({ color: 0xFFFFFF, roughness: 0.7 }); 
                 const tail = new THREE.Mesh(tailGeometry, tailMaterial);
-                tail.position.set(-1.0 * rabbitScale, 0.4 * rabbitScale, 0); 
+                tail.position.set(-1.0 * rabbitScale, 0.4 * rabbitScale, 0); // Adjusted for new scale
                 tail.castShadow = true;
                 rabbit.add(tail);
 
                 rabbit.position.set(rabbitX, 0, rabbitZ); // Rabbits are on the ground
                 rabbit.rotation.y = Math.random() * Math.PI * 2; // Random initial rotation
+                rabbit.userData.initialRotationY = rabbit.rotation.y; // Store initial rotation for movement
                 rabbit.userData.offset = Math.random() * Math.PI * 2; // Unique offset for bobbing
                 
-                // Chaotic movement properties - these will be removed/changed
                 rabbit.userData.initialPosition = rabbit.position.clone(); // Store initial position for oscillation
                 rabbit.userData.oscillationSpeed = rabbitOscillationSpeed + (Math.random() - 0.5) * 0.0002; // Slightly varied speed
                 rabbit.userData.oscillationAmplitude = rabbitOscillationAmplitude + (Math.random() - 0.5) * 0.5; // Slightly varied amplitude
@@ -759,6 +796,9 @@
             }
         }
 
+        /**
+         * Creates smoke particles for the chimney.
+         */
         function createSmokeParticles() {
             const particleGeometry = new THREE.SphereGeometry(0.1);
             const particleMaterial = new THREE.MeshBasicMaterial({
@@ -783,7 +823,11 @@
             }
         }
 
+        /**
+         * Sets up the scene's lighting (ambient, directional, hemisphere).
+         */
         function setupLighting() {
+            // Remove existing lights to avoid duplication
             scene.children.forEach(obj => {
                 if (obj instanceof THREE.Light) {
                     scene.remove(obj);
@@ -811,6 +855,9 @@
             scene.add(hemisphereLight);
         }
 
+        /**
+         * Sets up event listeners for mouse and keyboard controls.
+         */
         function setupControls() {
             renderer.domElement.addEventListener('mousedown', onMouseDown);
             renderer.domElement.addEventListener('mousemove', onMouseMove);
@@ -823,6 +870,8 @@
 
             document.getElementById('toggleDayNightButton').addEventListener('click', toggleDayNight);
         }
+
+        // --- Event Handlers ---
 
         function onKeyDown(event) {
             keys[event.code] = true;
@@ -861,6 +910,9 @@
             cameraDistance = Math.max(3, Math.min(50, cameraDistance)); 
         }
 
+        /**
+         * Toggles between day and night settings with a smooth transition.
+         */
         function toggleDayNight() {
             isDayTime = !isDayTime;
             targetTransitionProgress = isDayTime ? 1 : 0; 
@@ -871,15 +923,22 @@
             }
         }
 
+        /**
+         * Handles window resizing to keep the renderer and camera aspect ratio correct.
+         */
         function onWindowResize() {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
         }
 
+        /**
+         * Main animation loop.
+         */
         function animate() {
             requestAnimationFrame(animate);
 
+            // Smooth day/night transition logic
             if (transitionProgress !== targetTransitionProgress) {
                 const delta = targetTransitionProgress - transitionProgress;
                 transitionProgress += Math.sign(delta) * transitionSpeed;
@@ -936,7 +995,7 @@
             camera.position.copy(playerPosition).add(cameraOffset);
             camera.lookAt(playerPosition.x, playerPosition.y + 1, playerPosition.z);
 
-            // Corrected: Use 'particle' and 'idx' from forEach callback
+            // Animate smoke particles
             particles.forEach((particle, idx) => { 
                 particle.position.add(particle.userData.velocity);
                 particle.userData.life += 0.01;
@@ -954,6 +1013,7 @@
                 particle.material.opacity = 0.6 * (1 - particle.userData.life);
             });
 
+            // Animate fish
             const lakeCenter = new THREE.Vector3(30, 0.01, 0); 
             const fishBoundaryRadius = 18; 
             fish.forEach(f => {
@@ -985,10 +1045,11 @@
                 rabbit.position.z = newZ;
 
                 // Rotate rabbit to face the direction of movement
-                if (newZ > prevZ) { // Moving forward (towards positive Z)
-                    rabbit.rotation.y = 0; // Face forward along Z-axis (adjust if rabbit model faces differently)
-                } else { // Moving backward (towards negative Z)
-                    rabbit.rotation.y = Math.PI; // Face backward along Z-axis
+                // If moving forward (newZ > prevZ), face one way, else face the other
+                if (newZ > prevZ) { 
+                    rabbit.rotation.y = rabbit.userData.initialRotationY; // Use initial rotation for forward
+                } else { 
+                    rabbit.rotation.y = rabbit.userData.initialRotationY + Math.PI; // Add PI for backward
                 }
 
                 // Bobbing animation relative to ground (y=0)
@@ -1001,23 +1062,26 @@
             renderer.render(scene, camera);
         }
 
+        /**
+         * Updates player position and rotation based on keyboard input and camera direction.
+         */
         function updatePlayer() {
             let isMoving = false;
             const speed = keys['ShiftLeft'] || keys['ShiftRight'] ? 0.15 : 0.08;
-            const moveDirection = new THREE.Vector3(); // Вектор для накопления движения
+            const moveDirection = new THREE.Vector3(); 
             const cameraDirection = new THREE.Vector3();
-            camera.getWorldDirection(cameraDirection); // Получаем направление, куда смотрит камера
+            camera.getWorldDirection(cameraDirection); 
 
-            // Убеждаемся, что движение происходит только по горизонтали (игнорируем Y-компоненту камеры)
+            // Ensure horizontal movement only
             cameraDirection.y = 0;
             cameraDirection.normalize();
 
             const cameraRight = new THREE.Vector3();
-            // Векторное произведение up-вектора камеры и forward-вектора дает right-вектор
+            // Cross product of camera's up vector and forward vector gives right vector
             cameraRight.crossVectors(camera.up, cameraDirection); 
             cameraRight.normalize();
 
-            // Вычисляем движение на основе нажатых клавиш
+            // Calculate movement based on pressed keys and camera orientation
             if (keys['KeyW'] || keys['ArrowUp']) {
                 moveDirection.add(cameraDirection);
                 isMoving = true;
@@ -1027,11 +1091,11 @@
                 isMoving = true;
             }
             if (keys['KeyA'] || keys['ArrowLeft']) {
-                moveDirection.add(cameraRight); // Движение вправо (было влево)
+                moveDirection.add(cameraRight); // Move right relative to camera
                 isMoving = true;
             }
             if (keys['KeyD'] || keys['ArrowRight']) {
-                moveDirection.sub(cameraRight); // Движение влево (было вправо)
+                moveDirection.sub(cameraRight); // Move left relative to camera
                 isMoving = true;
             }
 
@@ -1039,8 +1103,7 @@
                 moveDirection.normalize().multiplyScalar(speed);
                 playerPosition.add(moveDirection);
 
-                // Обновляем поворот игрока, чтобы он смотрел в направлении движения
-                // Поворачиваем только при наличии горизонтального движения
+                // Update player rotation to face movement direction
                 if (Math.abs(moveDirection.x) > 0.0001 || Math.abs(moveDirection.z) > 0.0001) {
                     player.rotation.y = Math.atan2(moveDirection.x, moveDirection.z);
                 }
@@ -1057,14 +1120,15 @@
                 }
             }
 
-            // Ограничиваем позицию игрока границами
+            // Clamp player position within scene boundaries
             playerPosition.x = Math.max(-45, Math.min(45, playerPosition.x));
             playerPosition.z = Math.max(-45, Math.min(45, playerPosition.z));
 
             player.position.copy(playerPosition);
         }
 
-        // Moved init function to the very end to ensure all functions are defined
+        // --- Initialization Function ---
+        // This function is called once when the window finishes loading.
         function init() {
             scene = new THREE.Scene();
             scene.fog = new THREE.Fog(daySettings.fogColor, 10, 100); 
@@ -1078,6 +1142,7 @@
             renderer.shadowMap.type = THREE.PCFSoftShadowMap; 
             document.getElementById('container').appendChild(renderer.domElement);
 
+            // Create all scene elements
             createHouse();
             createPlayer();
             createGround();
@@ -1088,21 +1153,27 @@
             createPierAndBoat(); 
             createFence(); 
             createRabbits(); 
+            
+            // Setup lighting and controls
             setupLighting(); 
             setupControls();
 
+            // Initial day/night state
             targetTransitionProgress = isDayTime ? 1 : 0;
             const button = document.getElementById('toggleDayNightButton');
             if (button) {
-                button.textContent = isDayTime ? '☀️' : '🌙';
+                button.textContent = isDayTime ? '☀️' : '�';
             }
 
+            // Start the animation loop
             animate();
         }
 
+        // Ensure init is called after the entire window (including all scripts) has loaded
         window.onload = function() {
             init();
-        }; // Call init inside window.onload
+        }; 
     </script>
 </body>
 </html>
+�
