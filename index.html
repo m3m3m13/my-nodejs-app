@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D Домик - С тремя плавно движущимися зайчиками</title>
+    <title>3D Домик - Меньше тумана</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
         body {
@@ -127,10 +127,9 @@
         let scene, camera, renderer, house, particles = [], player;
         let isMouseDown = false, mouseX = 0, mouseY = 0;
         let cameraAngleX = 0.3, cameraAngleY = 0;
-        let cameraDistance = 20; 
+        let cameraDistance = 40; // Increased initial camera distance for larger world
         let isDayTime = true;
         let keys = {};
-        // Adjusted player starting position to be closer to the forest/rabbits
         let playerPosition = new THREE.Vector3(-10, 0.8, 0); 
         let playerRotation = 0;
         let walkAnimation = 0;
@@ -205,7 +204,7 @@
             house.add(walls);
 
             // Roof
-            const roofGeometry = new THREE.ConeGeometry(3.5, 2, 4);
+            const roofGeometry = new THREE.ConeGeometry(3.5, 2, 4, 8); // Increased segments for smoother cone
             const roofMaterial = new THREE.MeshStandardMaterial({ color: 0x8B0000, roughness: 0.7, metalness: 0.0 });
             const roof = new THREE.Mesh(roofGeometry, roofMaterial);
             roof.position.y = 4;
@@ -222,7 +221,7 @@
             house.add(door);
 
             // Door handle
-            const handleGeometry = new THREE.SphereGeometry(0.05);
+            const handleGeometry = new THREE.SphereGeometry(0.05, 16, 16); // Increased segments for smoother sphere
             const handleMaterial = new THREE.MeshStandardMaterial({ color: 0xFFD700, roughness: 0.3, metalness: 0.8 });
             const handle = new THREE.Mesh(handleGeometry, handleMaterial);
             handle.position.set(-0.3, 0.9, 2.1);
@@ -277,7 +276,7 @@
             player = new THREE.Group();
 
             // Body
-            const bodyGeometry = new THREE.CylinderGeometry(0.3, 0.3, 1.2);
+            const bodyGeometry = new THREE.CylinderGeometry(0.3, 0.3, 1.2, 16); // Increased segments
             const bodyMaterial = new THREE.MeshStandardMaterial({ color: 0x4169E1, roughness: 0.5 });
             const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
             body.position.y = 0.6; 
@@ -285,7 +284,7 @@
             player.add(body);
 
             // Head
-            const headGeometry = new THREE.SphereGeometry(0.25);
+            const headGeometry = new THREE.SphereGeometry(0.25, 16, 16); // Increased segments
             const headMaterial = new THREE.MeshStandardMaterial({ color: 0xFFDBB3, roughness: 0.6 });
             const head = new THREE.Mesh(headGeometry, headMaterial);
             head.position.y = 1.45; 
@@ -293,7 +292,7 @@
             player.add(head);
 
             // Eyes
-            const eyeGeometry = new THREE.SphereGeometry(0.05);
+            const eyeGeometry = new THREE.SphereGeometry(0.05, 8, 8);
             const eyeMaterial = new THREE.MeshBasicMaterial({ color: 0x000000 });
 
             const leftEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
@@ -305,7 +304,7 @@
             player.add(rightEye);
 
             // Arms
-            const armGeometry = new THREE.CylinderGeometry(0.08, 0.08, 0.8);
+            const armGeometry = new THREE.CylinderGeometry(0.08, 0.08, 0.8, 8); // Increased segments
             const armMaterial = new THREE.MeshStandardMaterial({ color: 0xFFDBB3, roughness: 0.6 });
 
             const leftArm = new THREE.Mesh(armGeometry, armMaterial);
@@ -319,7 +318,7 @@
             player.add(rightArm);
 
             // Legs
-            const legGeometry = new THREE.CylinderGeometry(0.1, 0.1, 0.8); 
+            const legGeometry = new THREE.CylinderGeometry(0.1, 0.1, 0.8, 8); // Increased segments
             const legMaterial = new THREE.MeshStandardMaterial({ color: 0x654321, roughness: 0.7 });
 
             const leftLeg = new THREE.Mesh(legGeometry, legMaterial);
@@ -342,7 +341,7 @@
          * Creates the ground plane.
          */
         function createGround() {
-            const groundGeometry = new THREE.PlaneGeometry(100, 100); 
+            const groundGeometry = new THREE.PlaneGeometry(200, 200); // Doubled size
             const groundMaterial = new THREE.MeshStandardMaterial({ color: 0x90EE90, roughness: 0.9, metalness: 0.0 });
             const ground = new THREE.Mesh(groundGeometry, groundMaterial);
             ground.rotation.x = -Math.PI / 2;
@@ -354,8 +353,8 @@
          * Creates various types of trees (deciduous and fir) and places them, avoiding the house and lake.
          */
         function createTrees() {
-            const numDeciduousTrees = 30; 
-            const numFirTrees = 40;     
+            const numDeciduousTrees = 60; // Doubled number for density in larger world
+            const numFirTrees = 80;     // Doubled number
 
             // Define house bounding box for collision detection
             const houseMinX = -2;
@@ -363,11 +362,11 @@
             const houseMinZ = -2;
             const houseMaxZ = 2;
 
-            // Define lake bounding circle for collision detection
-            const lakeCenterX = 30;
+            // Define lake bounding circle for collision detection (scaled position and radius)
+            const lakeCenterX = 60; // Doubled
             const lakeCenterZ = 0;
-            const lakeRadius = 15;
-            const lakeBuffer = 3; // Buffer zone around the lake
+            const lakeRadius = 30; // Doubled
+            const lakeBuffer = 6; // Doubled buffer zone
 
             // Deciduous trees
             const deciduousTrunkMaterial = new THREE.MeshStandardMaterial({ color: 0x8B4513, roughness: 0.8 });
@@ -380,8 +379,8 @@
 
                 // Keep generating random positions until it's outside the house and lake
                 while (!isValidPosition) {
-                    treeX = -45 + Math.random() * 90; 
-                    treeZ = -45 + Math.random() * 90;
+                    treeX = -90 + Math.random() * 180; // Doubled range
+                    treeZ = -90 + Math.random() * 180; // Doubled range
 
                     // Check if the tree is too close to the house
                     const isNearHouse = (treeX >= houseMinX - 3 && treeX <= houseMaxX + 3 && 
@@ -399,14 +398,14 @@
                     }
                 }
                 
-                const trunkGeometry = new THREE.CylinderGeometry(0.2, 0.3, 2);
+                const trunkGeometry = new THREE.CylinderGeometry(0.2, 0.3, 2, 8); // Increased segments
                 const trunk = new THREE.Mesh(trunkGeometry, deciduousTrunkMaterial);
                 trunk.position.y = 1;
                 trunk.castShadow = true;
                 trunk.receiveShadow = true;
                 tree.add(trunk);
 
-                const foliageGeometry = new THREE.SphereGeometry(1.2);
+                const foliageGeometry = new THREE.SphereGeometry(1.2, 16, 16); // Increased segments
                 const foliage = new THREE.Mesh(foliageGeometry, deciduousFoliageMaterial);
                 foliage.position.y = 2.5;
                 foliage.castShadow = true;
@@ -430,8 +429,8 @@
 
                 // Keep generating random positions until it's outside the house and lake
                 while (!isValidPosition) {
-                    treeX = -45 + Math.random() * 90; 
-                    treeZ = -45 + Math.random() * 90;
+                    treeX = -90 + Math.random() * 180; // Doubled range
+                    treeZ = -90 + Math.random() * 180; // Doubled range
 
                     // Check if the tree is too close to the house
                     const isNearHouse = (treeX >= houseMinX - 3 && treeX <= houseMaxX + 3 && 
@@ -449,7 +448,7 @@
                     }
                 }
 
-                const trunkGeometry = new THREE.CylinderGeometry(0.15, 0.25, 2.5); 
+                const trunkGeometry = new THREE.CylinderGeometry(0.15, 0.25, 2.5, 8); // Increased segments
                 const trunk = new THREE.Mesh(trunkGeometry, firTrunkMaterial);
                 trunk.position.y = 1.25;
                 trunk.castShadow = true;
@@ -490,6 +489,7 @@
          * Creates the lake with fish.
          */
         function createLake() {
+            // Define points for the irregular lake shape
             const shapePoints = [
                 new THREE.Vector2(0, 15),
                 new THREE.Vector2(8, 12),
@@ -502,8 +502,10 @@
                 new THREE.Vector2(-13, 5),
                 new THREE.Vector2(-8, 12)
             ];
+            // Scale points to double the lake size
+            const scaledShapePoints = shapePoints.map(p => new THREE.Vector2(p.x * 2, p.y * 2));
 
-            const lakeShape = new THREE.Shape(shapePoints);
+            const lakeShape = new THREE.Shape(scaledShapePoints);
             const lakeGeometry = new THREE.ShapeGeometry(lakeShape); 
             
             // Water material with transparency and reflectivity
@@ -517,7 +519,7 @@
             });
             const lake = new THREE.Mesh(lakeGeometry, waterMaterial);
             lake.rotation.x = -Math.PI / 2; 
-            lake.position.set(30, 0.01, 0); 
+            lake.position.set(60, 0.01, 0); // Doubled X position
             scene.add(lake);
 
             // Fish
@@ -525,7 +527,7 @@
             const fishGeometry = new THREE.BoxGeometry(0.5, 0.2, 0.2); 
             const fishMaterial = new THREE.MeshStandardMaterial({ color: 0xFF8C00 }); 
 
-            const fishBoundaryRadius = 18; 
+            const fishBoundaryRadius = 36; // Doubled
 
             for (let i = 0; i < numFish; i++) {
                 const f = new THREE.Mesh(fishGeometry, fishMaterial);
@@ -549,21 +551,22 @@
          * Creates vegetation around the lake (bushes and reeds).
          */
         function createLakeVegetation() {
-            const lakeCenter = new THREE.Vector3(30, 0, 0); 
-            const lakeRadius = 15; 
-            const numBushes = 30;
-            const numReeds = 50;
+            const lakeCenterX = 60; // Doubled
+            const lakeCenterZ = 0;
+            const lakeRadius = 30; // Doubled
+            const numBushes = 60; // Doubled
+            const numReeds = 100; // Doubled
 
             const bushMaterial = new THREE.MeshStandardMaterial({ color: 0x558B2F, roughness: 0.8 });
             for (let i = 0; i < numBushes; i++) {
-                const bush = new THREE.Mesh(new THREE.SphereGeometry(0.3 + Math.random() * 0.3, 8, 8), bushMaterial);
+                const bush = new THREE.Mesh(new THREE.SphereGeometry(0.3 + Math.random() * 0.3, 12, 12), bushMaterial); // Increased segments
                 
                 const angle = Math.random() * Math.PI * 2;
-                const distance = lakeRadius + 2 + Math.random() * 5; 
+                const distance = lakeRadius + 4 + Math.random() * 10; // Doubled distance and range
                 bush.position.set(
-                    lakeCenter.x + Math.cos(angle) * distance,
+                    lakeCenterX + Math.cos(angle) * distance,
                     0.15, 
-                    lakeCenter.z + Math.sin(angle) * distance
+                    lakeCenterZ + Math.sin(angle) * distance
                 );
                 bush.scale.y = 0.7 + Math.random() * 0.6; 
                 bush.castShadow = true;
@@ -577,7 +580,7 @@
                 const reed = new THREE.Group();
                 const height = 0.8 + Math.random() * 0.7;
 
-                const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.03, height, 4), reedStemMaterial);
+                const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.03, height, 8), reedStemMaterial); // Increased segments
                 stem.position.y = height / 2;
                 stem.castShadow = true;
                 stem.receiveShadow = true;
@@ -590,11 +593,11 @@
                 reed.add(head);
                 
                 const angle = Math.random() * Math.PI * 2;
-                const distance = lakeRadius - 1 + Math.random() * 2; 
+                const distance = lakeRadius - 2 + Math.random() * 4; // Doubled distance and range
                 reed.position.set(
-                    lakeCenter.x + Math.cos(angle) * distance,
+                    lakeCenterX + Math.cos(angle) * distance,
                     0, 
-                    lakeCenter.z + Math.sin(angle) * distance
+                    lakeCenterZ + Math.sin(angle) * distance
                 );
                 reed.rotation.y = Math.random() * Math.PI * 2; 
                 reed.rotation.z = (Math.random() - 0.5) * 0.2; 
@@ -606,7 +609,7 @@
          * Creates a pier and a boat on the lake.
          */
         function createPierAndBoat() {
-            const lakeCenter = new THREE.Vector3(30, 0.01, 0); 
+            const lakeCenter = new THREE.Vector3(60, 0.01, 0); // Doubled X position
 
             // Create pier
             const pierMaterial = new THREE.MeshStandardMaterial({ color: 0x8B4513, roughness: 0.6 }); 
@@ -614,7 +617,7 @@
             // Main part of the pier
             const pierBaseGeometry = new THREE.BoxGeometry(1.5, 0.2, 5); 
             const pierBase = new THREE.Mesh(pierBaseGeometry, pierMaterial);
-            pierBase.position.set(lakeCenter.x + 10, lakeCenter.y + pierBaseGeometry.parameters.height / 2 + 0.01, lakeCenter.z + 10); 
+            pierBase.position.set(lakeCenter.x + 20, lakeCenter.y + pierBaseGeometry.parameters.height / 2 + 0.01, lakeCenter.z + 10); // Adjusted X position
             pierBase.castShadow = true;
             pierBase.receiveShadow = true;
             scene.add(pierBase);
@@ -645,7 +648,7 @@
             boat.add(boatHull);
 
             // Boat front (cone or more complex shape)
-            const boatFrontGeometry = new THREE.ConeGeometry(0.4, 0.5, 4); 
+            const boatFrontGeometry = new THREE.ConeGeometry(0.4, 0.5, 8); // Increased segments
             const boatFront = new THREE.Mesh(boatFrontGeometry, boatMaterial);
             boatFront.rotation.x = Math.PI / 2; 
             boatFront.position.set(0, 0, 1.25); 
@@ -658,7 +661,7 @@
             boat.add(seat);
 
             // Position the boat at lake level
-            boat.position.set(pierBase.position.x + 1.2, lakeCenter.y + boatHullGeometry.parameters.height / 2, pierBase.position.z + 1.5); 
+            boat.position.set(pierBase.position.x + 2, lakeCenter.y + boatHullGeometry.parameters.height / 2, pierBase.position.z + 1.5); // Adjusted X position
             boat.rotation.y = -Math.PI / 4; 
             boat.castShadow = true;
             boat.receiveShadow = true;
@@ -672,7 +675,7 @@
             const fenceRadius = 6; 
             const fenceHeight = 0.8;
             const postRadius = 0.08;
-            const numPosts = 16; 
+            const numPosts = 32; // Increased posts for smoother circle
 
             const fenceMaterial = new THREE.MeshStandardMaterial({ color: 0x8B4513, roughness: 0.7 }); 
 
@@ -709,10 +712,10 @@
             const houseMinZ = -2;
             const houseMaxZ = 2;
 
-            const lakeCenterX = 30;
+            const lakeCenterX = 60; // Scaled
             const lakeCenterZ = 0;
-            const lakeRadius = 15;
-            const exclusionBuffer = 2; // Buffer zone around the lake
+            const lakeRadius = 30; // Scaled
+            const exclusionBuffer = 4; // Adjusted buffer zone
 
             // Movement properties for rabbits (smooth oscillation)
             const rabbitOscillationSpeed = 0.001; // Slower speed for oscillation
@@ -724,8 +727,8 @@
                 let isValidPosition = false;
 
                 while (!isValidPosition) {
-                    rabbitX = -45 + Math.random() * 90; 
-                    rabbitZ = -45 + Math.random() * 90;
+                    rabbitX = -90 + Math.random() * 180; // Doubled range
+                    rabbitZ = -90 + Math.random() * 180; // Doubled range
 
                     // Check if the rabbit is too close to the house
                     const isNearHouse = (rabbitX >= houseMinX - exclusionBuffer && rabbitX <= houseMaxX + exclusionBuffer && 
@@ -744,44 +747,44 @@
                 }
 
                 // Body
-                const bodyGeometry = new THREE.SphereGeometry(0.8 * rabbitScale, 16, 8); 
+                const bodyGeometry = new THREE.SphereGeometry(0.8 * rabbitScale, 24, 12); // Increased segments
                 const body = new THREE.Mesh(bodyGeometry, rabbitMaterial);
-                body.position.y = 0.4 * rabbitScale; // Adjusted for new scale
+                body.position.y = 0.4 * rabbitScale; 
                 body.scale.z = 1.5; 
                 body.castShadow = true;
                 body.receiveShadow = true;
                 rabbit.add(body);
 
                 // Head
-                const headGeometry = new THREE.SphereGeometry(0.5 * rabbitScale, 16, 8); 
+                const headGeometry = new THREE.SphereGeometry(0.5 * rabbitScale, 24, 12); // Increased segments
                 const head = new THREE.Mesh(headGeometry, rabbitMaterial);
-                head.position.set(0.6 * rabbitScale, 0.8 * rabbitScale, 0); // Adjusted for new scale
+                head.position.set(0.6 * rabbitScale, 0.8 * rabbitScale, 0); 
                 head.castShadow = true;
                 rabbit.add(head);
 
                 // Ears
                 const earGeometry = new THREE.BoxGeometry(0.2 * rabbitScale, 1.2 * rabbitScale, 0.2 * rabbitScale); 
                 const leftEar = new THREE.Mesh(earGeometry, rabbitMaterial);
-                leftEar.position.set(0.7 * rabbitScale, 1.6 * rabbitScale, 0.3 * rabbitScale); // Adjusted for new scale
+                leftEar.position.set(0.7 * rabbitScale, 1.6 * rabbitScale, 0.3 * rabbitScale); 
                 leftEar.rotation.z = Math.PI / 10;
                 leftEar.castShadow = true;
                 rabbit.add(leftEar);
 
                 const rightEar = new THREE.Mesh(earGeometry, rabbitMaterial);
-                rightEar.position.set(0.7 * rabbitScale, 1.6 * rabbitScale, -0.3 * rabbitScale); // Adjusted for new scale
+                rightEar.position.set(0.7 * rabbitScale, 1.6 * rabbitScale, -0.3 * rabbitScale); 
                 rightEar.rotation.z = -Math.PI / 10;
                 rightEar.castShadow = true;
                 rabbit.add(rightEar);
 
                 // Tail
-                const tailGeometry = new THREE.SphereGeometry(0.3 * rabbitScale, 8, 8); 
+                const tailGeometry = new THREE.SphereGeometry(0.3 * rabbitScale, 16, 16); // Increased segments
                 const tailMaterial = new THREE.MeshStandardMaterial({ color: 0xFFFFFF, roughness: 0.7 }); 
                 const tail = new THREE.Mesh(tailGeometry, tailMaterial);
-                tail.position.set(-1.0 * rabbitScale, 0.4 * rabbitScale, 0); // Adjusted for new scale
+                tail.position.set(-1.0 * rabbitScale, 0.4 * rabbitScale, 0); 
                 tail.castShadow = true;
                 rabbit.add(tail);
 
-                rabbit.position.set(rabbitX, 0, rabbitZ); // Rabbits are on the ground
+                rabbit.position.set(rabbitX, 0, rabbitZ); 
                 rabbit.rotation.y = Math.random() * Math.PI * 2; // Random initial rotation
                 rabbit.userData.initialRotationY = rabbit.rotation.y; // Store initial rotation for movement
                 rabbit.userData.offset = Math.random() * Math.PI * 2; // Unique offset for bobbing
@@ -800,7 +803,7 @@
          * Creates smoke particles for the chimney.
          */
         function createSmokeParticles() {
-            const particleGeometry = new THREE.SphereGeometry(0.1);
+            const particleGeometry = new THREE.SphereGeometry(0.1, 8, 8); // Increased segments
             const particleMaterial = new THREE.MeshBasicMaterial({
                 color: 0xDDDDDD,
                 transparent: true,
@@ -844,11 +847,11 @@
             directionalLight.shadow.mapSize.width = 2048;
             directionalLight.shadow.mapSize.height = 2048;
             directionalLight.shadow.camera.near = 0.5;
-            directionalLight.shadow.camera.far = 50;
-            directionalLight.shadow.camera.left = -20;
-            directionalLight.shadow.camera.right = 20;
-            directionalLight.shadow.camera.top = 20;
-            directionalLight.shadow.camera.bottom = -20;
+            directionalLight.shadow.camera.far = 200; // Increased far plane for larger world
+            directionalLight.shadow.camera.left = -40; // Doubled
+            directionalLight.shadow.camera.right = 40; // Doubled
+            directionalLight.shadow.camera.top = 40; // Doubled
+            directionalLight.shadow.camera.bottom = -40; // Doubled
             scene.add(directionalLight);
 
             const hemisphereLight = new THREE.HemisphereLight(daySettings.hemisphereSkyColor, daySettings.hemisphereGroundColor, daySettings.hemisphereIntensity);
@@ -907,7 +910,7 @@
 
         function onWheel(event) {
             cameraDistance += event.deltaY * 0.01;
-            cameraDistance = Math.max(3, Math.min(50, cameraDistance)); 
+            cameraDistance = Math.max(3, Math.min(100, cameraDistance)); // Increased max camera distance
         }
 
         /**
@@ -1014,8 +1017,8 @@
             });
 
             // Animate fish
-            const lakeCenter = new THREE.Vector3(30, 0.01, 0); 
-            const fishBoundaryRadius = 18; 
+            const lakeCenter = new THREE.Vector3(60, 0.01, 0); // Scaled
+            const fishBoundaryRadius = 36; // Scaled
             fish.forEach(f => {
                 f.position.add(f.userData.velocity);
                 
@@ -1121,8 +1124,8 @@
             }
 
             // Clamp player position within scene boundaries
-            playerPosition.x = Math.max(-45, Math.min(45, playerPosition.x));
-            playerPosition.z = Math.max(-45, Math.min(45, playerPosition.z));
+            playerPosition.x = Math.max(-90, Math.min(90, playerPosition.x)); // Doubled boundaries
+            playerPosition.z = Math.max(-90, Math.min(90, playerPosition.z)); // Doubled boundaries
 
             player.position.copy(playerPosition);
         }
@@ -1131,7 +1134,7 @@
         // This function is called once when the window finishes loading.
         function init() {
             scene = new THREE.Scene();
-            scene.fog = new THREE.Fog(daySettings.fogColor, 10, 100); 
+            scene.fog = new THREE.Fog(daySettings.fogColor, 20, 200); // Adjusted fog: near 20, far 200
 
             camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 
@@ -1162,7 +1165,7 @@
             targetTransitionProgress = isDayTime ? 1 : 0;
             const button = document.getElementById('toggleDayNightButton');
             if (button) {
-                button.textContent = isDayTime ? '☀️' : '�';
+                button.textContent = isDayTime ? '☀️' : '🌙';
             }
 
             // Start the animation loop
@@ -1176,4 +1179,3 @@
     </script>
 </body>
 </html>
-�
