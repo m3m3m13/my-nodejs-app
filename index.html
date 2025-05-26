@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D Домик - Меньше тумана</title>
+    <title>3D Домик - Улучшенная реалистичность</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
         body {
@@ -136,6 +136,7 @@
         let windowLights = []; 
         let fish = []; 
         let rabbits = []; // Array to hold rabbit objects
+        let clouds = []; // Array to hold cloud objects
 
         let transitionProgress = 1; 
         let transitionSpeed = 0.02; 
@@ -827,6 +828,133 @@
         }
 
         /**
+         * Creates scattered rocks/stones across the terrain.
+         */
+        function createRocks() {
+            const numRocks = 100;
+            const rockMaterial = new THREE.MeshStandardMaterial({ color: 0x808080, roughness: 0.9, metalness: 0.0 }); // Grey stone color
+
+            // Define exclusion zones (house and lake)
+            const houseMinX = -2; const houseMaxX = 2;
+            const houseMinZ = -2; const houseMaxZ = 2;
+            const lakeCenterX = 60; const lakeCenterZ = 0;
+            const lakeRadius = 30;
+            const exclusionBuffer = 5; // Buffer zone around house/lake
+
+            for (let i = 0; i < numRocks; i++) {
+                let rockX, rockZ;
+                let isValidPosition = false;
+
+                while (!isValidPosition) {
+                    rockX = -90 + Math.random() * 180; // Full world range
+                    rockZ = -90 + Math.random() * 180; // Full world range
+
+                    const isNearHouse = (rockX >= houseMinX - exclusionBuffer && rockX <= houseMaxX + exclusionBuffer && 
+                                        rockZ >= houseMinZ - exclusionBuffer && rockZ <= houseMaxZ + exclusionBuffer);
+                    const distanceToLakeCenter = Math.sqrt(
+                        Math.pow(rockX - lakeCenterX, 2) + 
+                        Math.pow(rockZ - lakeCenterZ, 2)
+                    );
+                    const isNearLake = distanceToLakeCenter < (lakeRadius + exclusionBuffer);
+
+                    if (!isNearHouse && !isNearLake) {
+                        isValidPosition = true;
+                    }
+                }
+
+                // Randomly choose between a sphere or box geometry for variety
+                let rockGeometry;
+                if (Math.random() > 0.5) {
+                    rockGeometry = new THREE.SphereGeometry(0.2 + Math.random() * 0.4, 8, 8); // Small spheres
+                } else {
+                    rockGeometry = new THREE.BoxGeometry(0.3 + Math.random() * 0.5, 0.1 + Math.random() * 0.3, 0.3 + Math.random() * 0.5); // Flat-ish boxes
+                }
+                
+                const rock = new THREE.Mesh(rockGeometry, rockMaterial);
+                rock.position.set(rockX, rockGeometry.parameters.height / 2 || rockGeometry.parameters.radius || 0.1, rockZ); // Place on ground
+                rock.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI); // Random rotation
+                rock.castShadow = true;
+                rock.receiveShadow = true;
+                scene.add(rock);
+            }
+        }
+
+        /**
+         * Creates dynamic clouds in the sky.
+         */
+        let cloudMeshes = []; // Array to store cloud meshes for animation
+        function createClouds() {
+            const numClouds = 10;
+            const cloudMaterial = new THREE.MeshStandardMaterial({ color: 0xFFFFFF, transparent: true, opacity: 0.8, roughness: 0.5 });
+
+            for (let i = 0; i < numClouds; i++) {
+                const cloud = new THREE.Group();
+                const numParts = 3 + Math.floor(Math.random() * 3); // 3-5 parts per cloud
+
+                for (let j = 0; j < numParts; j++) {
+                    const partGeometry = new THREE.SphereGeometry(3 + Math.random() * 2, 16, 16); // Varying sizes
+                    const part = new THREE.Mesh(partGeometry, cloudMaterial);
+                    part.position.set(
+                        (Math.random() - 0.5) * 10,
+                        (Math.random() - 0.5) * 3,
+                        (Math.random() - 0.5) * 5
+                    );
+                    part.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
+                    cloud.add(part);
+                }
+
+                cloud.position.set(
+                    -90 + Math.random() * 180, // Wide range across the world
+                    30 + Math.random() * 10,  // High in the sky
+                    -90 + Math.random() * 180
+                );
+                cloud.scale.setScalar(0.5 + Math.random()); // Vary cloud size
+                cloud.userData.speed = (Math.random() - 0.5) * 0.05; // Random horizontal speed
+                scene.add(cloud);
+                clouds.push(cloud);
+            }
+        }
+
+        /**
+         * Creates a mailbox near the house.
+         */
+        function createMailbox() {
+            const mailbox = new THREE.Group();
+            const postMaterial = new THREE.MeshStandardMaterial({ color: 0x8B4513, roughness: 0.7 }); // Brown post
+            const boxMaterial = new THREE.MeshStandardMaterial({ color: 0xFF0000, roughness: 0.6 }); // Red box
+
+            // Post
+            const postGeometry = new THREE.CylinderGeometry(0.1, 0.1, 1.0, 8);
+            const post = new THREE.Mesh(postGeometry, postMaterial);
+            post.position.y = 0.5;
+            post.castShadow = true;
+            post.receiveShadow = true;
+            mailbox.add(post);
+
+            // Box
+            const boxGeometry = new THREE.BoxGeometry(0.4, 0.3, 0.6);
+            const box = new THREE.Mesh(boxGeometry, boxMaterial);
+            box.position.set(0, 1.2, 0);
+            box.castShadow = true;
+            box.receiveShadow = true;
+            mailbox.add(box);
+
+            // Flag (small cylinder)
+            const flagGeometry = new THREE.CylinderGeometry(0.02, 0.02, 0.3, 4);
+            const flagMaterial = new THREE.MeshStandardMaterial({ color: 0x0000FF, roughness: 0.5 }); // Blue flag
+            const flag = new THREE.Mesh(flagGeometry, flagMaterial);
+            flag.position.set(0.2, 1.35, 0.2);
+            flag.rotation.z = Math.PI / 2; // Make it horizontal
+            flag.castShadow = true;
+            mailbox.add(flag);
+
+            mailbox.position.set(-3, 0, 3); // Position near the house
+            mailbox.rotation.y = Math.PI / 4; // Slightly rotate
+            scene.add(mailbox);
+        }
+
+
+        /**
          * Sets up the scene's lighting (ambient, directional, hemisphere).
          */
         function setupLighting() {
@@ -848,10 +976,10 @@
             directionalLight.shadow.mapSize.height = 2048;
             directionalLight.shadow.camera.near = 0.5;
             directionalLight.shadow.camera.far = 200; // Increased far plane for larger world
-            directionalLight.shadow.camera.left = -40; // Doubled
-            directionalLight.shadow.camera.right = 40; // Doubled
-            directionalLight.shadow.camera.top = 40; // Doubled
-            directionalLight.shadow.camera.bottom = -40; // Doubled
+            directionalLight.shadow.camera.left = -90; // Adjusted for larger world
+            directionalLight.shadow.camera.right = 90; // Adjusted for larger world
+            directionalLight.shadow.camera.top = 90; // Adjusted for larger world
+            directionalLight.shadow.camera.bottom = -90; // Adjusted for larger world
             scene.add(directionalLight);
 
             const hemisphereLight = new THREE.HemisphereLight(daySettings.hemisphereSkyColor, daySettings.hemisphereGroundColor, daySettings.hemisphereIntensity);
@@ -910,7 +1038,7 @@
 
         function onWheel(event) {
             cameraDistance += event.deltaY * 0.01;
-            cameraDistance = Math.max(3, Math.min(100, cameraDistance)); // Increased max camera distance
+            cameraDistance = Math.max(3, Math.min(200, cameraDistance)); // Increased max camera distance for larger world
         }
 
         /**
@@ -1059,6 +1187,14 @@
                 rabbit.position.y = Math.sin(Date.now() * 0.005 + rabbit.userData.offset) * 0.05; 
             });
 
+            // Animate clouds
+            clouds.forEach(cloud => {
+                cloud.position.x += cloud.userData.speed;
+                // Wrap clouds around the world
+                if (cloud.position.x > 100) cloud.position.x = -100;
+                if (cloud.position.x < -100) cloud.position.x = 100;
+            });
+
 
             house.rotation.y = Math.sin(Date.now() * 0.0005) * 0.02;
 
@@ -1156,6 +1292,9 @@
             createPierAndBoat(); 
             createFence(); 
             createRabbits(); 
+            createRocks(); // Add rocks
+            createClouds(); // Add clouds
+            createMailbox(); // Add mailbox
             
             // Setup lighting and controls
             setupLighting(); 
