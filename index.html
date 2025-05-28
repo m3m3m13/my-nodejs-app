@@ -179,10 +179,12 @@
     <script>
         // Глобальные переменные для сцены
         let scene, camera, renderer, house, particles = [], player;
+        // Глобальные переменные для источников света, чтобы их можно было обновлять напрямую
+        let ambientLight, directionalLight, hemisphereLight; 
         let isMouseDown = false, mouseX = 0, mouseY = 0;
         let cameraAngleX = 0.3, cameraAngleY = 0;
         let cameraDistance = 40; // Увеличено начальное расстояние камеры для большего мира
-        let isDayTime = true;
+        let isDayTime = true; // Используется для логики светлячков и иконки
         let keys = {};
         let playerPosition = new THREE.Vector3(-10, 0.8, 0); 
         let playerRotation = 0;
@@ -195,6 +197,7 @@
         let clouds = []; // Массив для объектов облаков
         let fireflies = []; // Массив для объектов светлячков
         let bird; // Объект птицы
+        let deer = []; // Массив для объектов оленей
 
         // Игровые переменные
         let playerHasResource = false; // Может держать либо бревно, либо камень
@@ -211,8 +214,12 @@
         let placedBuildingBlocks = []; // Новый массив для блоков, размещенных игроком для строительства
 
         let transitionProgress = 1; // 1 = день, 0 = ночь
-        let transitionSpeed = 0.02; // Скорость перехода
-        let targetTransitionProgress = 1; 
+        const transitionSpeed = 0.02; // Скорость перехода
+        const dayNightCycleDuration = 20 * 60 * 1000; // 20 минут в миллисекундах
+        const halfDayNightCycle = dayNightCycleDuration / 2; // 10 минут
+
+        let isSliderDragging = false; // Флаг для отслеживания перетаскивания ползунка
+        let isManualTimeControl = false; // Флаг, который становится true, если пользователь вручную изменил ползунок
 
         // Настройки дня и ночи для освещения и тумана
         const daySettings = {
@@ -221,7 +228,7 @@
             ambientIntensity: 0.4, // Умеренный окружающий свет
             directionalColor: 0xffffff, // Белый солнечный свет
             directionalIntensity: 0.8, // Сильный солнечный свет
-            directionalPosition: new THREE.Vector3(10, 15, 10), // Позиция солнца (используется как фиксированная позиция)
+            directionalPosition: new THREE.Vector3(10, 15, 10), // Позиция солнца
             hemisphereSkyColor: 0xC0E0FF, // Светло-голубое небо для полусферы
             hemisphereGroundColor: 0xA9D9A9, // Светло-зеленая земля для полусферы
             hemisphereIntensity: 0.6, // Умеренный свет полусферы
@@ -234,7 +241,7 @@
             ambientIntensity: 0.25, // Тусклый окружающий свет
             directionalColor: 0x404080, // Голубоватый лунный свет
             directionalIntensity: 0.3, // Тусклый лунный свет
-            directionalPosition: new THREE.Vector3(-10, 15, -10), // Позиция луны (больше не используется для динамического движения)
+            directionalPosition: new THREE.Vector3(-10, 15, -10), // Позиция луны
             hemisphereSkyColor: 0x202050, // Темно-синее небо для полусферы
             hemisphereGroundColor: 0x101010, // Очень темная земля для полусферы
             hemisphereIntensity: 0.2, // Очень тусклый свет полусферы
@@ -528,11 +535,11 @@
             const barnBuffer = 3; // Буферная зона вокруг сарайчика
 
             // Определяем ограничивающий прямоугольник каменоломни для обнаружения столкновений
-            const quarryMinX = 40 - 2; // Позиция каменоломни 40, размер 5
+            const quarryMinX = 40 - 2;
             const quarryMaxX = 40 + 2;
             const quarryMinZ = -40 - 2;
             const quarryMaxZ = -40 + 2;
-            const quarryBuffer = 3; // Буферная зона вокруг каменоломни
+            const quarryBuffer = 3;
 
 
             // Лиственные деревья
@@ -551,7 +558,7 @@
 
                     // Проверяем, не слишком ли дерево близко к дому
                     const isNearHouse = (treeX >= houseMinX - 3 && treeX <= houseMaxX + 3 && 
-                                        treeZ >= houseMinZ - 3 && treeZ <= houseMaxZ + 3);
+                                         treeZ >= houseMinZ - 3 && treeZ <= houseMaxZ + 3);
 
                     // Проверяем, не слишком ли дерево близко к озеру
                     const distanceToLakeCenter = Math.sqrt(
@@ -562,7 +569,7 @@
 
                     // Проверяем, не слишком ли дерево близко к сарайчику
                     const isNearBarn = (treeX >= barnMinX - barnBuffer && treeX <= barnMaxX + barnBuffer &&
-                                        treeZ >= barnMinZ - barnBuffer && treeZ <= barnMaxZ + barnBuffer);
+                                         treeZ >= barnMinZ - barnBuffer && treeZ <= barnMaxZ + barnBuffer);
                     
                     // Проверяем, не слишком ли дерево близко к каменоломне
                     const isNearQuarry = (treeX >= quarryMinX - quarryBuffer && treeX <= quarryMaxX + quarryBuffer &&
@@ -621,7 +628,7 @@
 
                     // Проверяем, не слишком ли дерево близко к дому
                     const isNearHouse = (treeX >= houseMinX - 3 && treeX <= houseMaxX + 3 && 
-                                        treeZ >= houseMinZ - 3 && treeZ <= houseMaxZ + 3);
+                                         treeZ >= houseMinZ - 3 && treeZ <= houseMaxZ + 3);
 
                     // Проверяем, не слишком ли дерево близко к озеру
                     const distanceToLakeCenter = Math.sqrt(
@@ -632,7 +639,7 @@
 
                     // Проверяем, не слишком ли дерево близко к сарайчику
                     const isNearBarn = (treeX >= barnMinX - barnBuffer && treeX <= barnMaxX + barnBuffer &&
-                                        treeZ >= barnMinZ - barnBuffer && treeZ <= barnMaxZ + barnBuffer);
+                                         treeZ >= barnMinZ - barnBuffer && treeZ <= barnMaxZ + barnBuffer);
 
                     // Проверяем, не слишком ли дерево близко к каменоломне
                     const isNearQuarry = (treeX >= quarryMinX - quarryBuffer && treeX <= quarryMaxX + quarryBuffer &&
@@ -925,11 +932,11 @@
             const barnBuffer = 3; // Буферная зона вокруг сарайчика
 
             // Определяем ограничивающий прямоугольник каменоломни для обнаружения столкновений
-            const quarryMinX = 40 - 2; // Позиция каменоломни 40, размер 5
+            const quarryMinX = 40 - 2;
             const quarryMaxX = 40 + 2;
             const quarryMinZ = -40 - 2;
             const quarryMaxZ = -40 + 2;
-            const quarryBuffer = 3; // Буферная зона вокруг каменоломни
+            const quarryBuffer = 3;
 
             // Свойства движения для кроликов (плавная осцилляция)
             const rabbitOscillationSpeed = 0.001; // Более низкая скорость для осцилляции
@@ -946,7 +953,7 @@
 
                     // Проверяем, не слишком ли кролик близко к дому
                     const isNearHouse = (rabbitX >= houseMinX - exclusionBuffer && rabbitX <= houseMaxX + exclusionBuffer && 
-                                        rabbitZ >= houseMinZ - exclusionBuffer && rabbitZ <= houseMaxZ + exclusionBuffer);
+                                         rabbitZ >= houseMinZ - exclusionBuffer && rabbitZ <= houseMaxZ + exclusionBuffer);
 
                     // Проверяем, не слишком ли кролик близко к озеру
                     const distanceToLakeCenter = Math.sqrt(
@@ -957,7 +964,7 @@
 
                     // Проверяем, не слишком ли кролик близко к сарайчику
                     const isNearBarn = (rabbitX >= barnMinX - barnBuffer && rabbitX <= barnMaxX + barnBuffer &&
-                                        rabbitZ >= barnMinZ - barnBuffer && rabbitZ <= barnMaxZ + barnBuffer);
+                                         rabbitZ >= barnMinZ - barnBuffer && rabbitZ <= barnMaxZ + barnBuffer);
 
                     // Проверяем, не слишком ли кролик близко к каменоломне
                     const isNearQuarry = (rabbitX >= quarryMinX - quarryBuffer && rabbitX <= quarryMaxX + quarryBuffer &&
@@ -1075,6 +1082,11 @@
             const quarryMaxZ = -40 + 2;
             const quarryBuffer = 3;
 
+            // Добавляем зоны исключения для нового леса
+            const forestMinX = 60; const forestMaxX = 90; // Правый дальний угол
+            const forestMinZ = -90; const forestMaxZ = -60; // Правый дальний угол
+            const forestBuffer = 5;
+
             for (let i = 0; i < numRocks; i++) {
                 let rockX, rockZ;
                 let isValidPosition = false;
@@ -1084,7 +1096,7 @@
                     rockZ = -90 + Math.random() * 180; // Полный диапазон мира
 
                     const isNearHouse = (rockX >= houseMinX - exclusionBuffer && rockX <= houseMaxX + exclusionBuffer && 
-                                        rockZ >= houseMinZ - exclusionBuffer && rockZ <= houseMaxZ + exclusionBuffer);
+                                         rockZ >= houseMinZ - exclusionBuffer && rockZ <= houseMaxZ + exclusionBuffer);
                     const distanceToLakeCenter = Math.sqrt(
                         Math.pow(rockX - lakeCenterX, 2) + 
                         Math.pow(rockZ - lakeCenterZ, 2)
@@ -1092,12 +1104,15 @@
                     const isNearLake = distanceToLakeCenter < (lakeRadius + exclusionBuffer);
 
                     const isNearBarn = (rockX >= barnMinX - barnBuffer && rockX <= barnMaxX + barnBuffer &&
-                                        rockZ >= barnMinZ - barnBuffer && rockZ <= barnMaxZ + barnBuffer);
+                                         rockZ >= barnMinZ - barnBuffer && rockZ <= barnMaxZ + barnBuffer);
 
                     const isNearQuarry = (rockX >= quarryMinX - quarryBuffer && rockX <= quarryMaxX + quarryBuffer &&
                                           rockZ >= quarryMinZ - quarryBuffer && rockZ <= quarryMaxZ + quarryBuffer);
+                    
+                    const isNearForest = (rockX >= forestMinX - forestBuffer && rockX <= forestMaxX + forestBuffer &&
+                                          rockZ >= forestMinZ - forestBuffer && rockZ <= forestMaxZ + forestBuffer);
 
-                    if (!isNearHouse && !isNearLake && !isNearBarn && !isNearQuarry) {
+                    if (!isNearHouse && !isNearLake && !isNearBarn && !isNearQuarry && !isNearForest) {
                         isValidPosition = true;
                     }
                 }
@@ -1421,7 +1436,7 @@
             logDropOffPileGroup.position.set(barn.position.x + 3.5, 0, barn.position.z + 0.5); // Смещение относительно сарайчика
             logDropOffPileGroup.rotation.y = Math.PI / 6; // Немного поворачиваем
             scene.add(logDropOffPileGroup);
-            console.log("Log drop-off pile (at sawmill) created at:", logDropOffPileGroup.position);
+            console.log("Поленница (у лесопилки) создана по координатам:", logDropOffPileGroup.position);
 
             // Добавляем несколько начальных бревен к поленнице
             const initialLogsCount = 20; // Увеличено количество бревен
@@ -1440,7 +1455,7 @@
                 log.rotation.y = (Math.random() - 0.5) * 0.2;
                 logDropOffPileGroup.add(log);
             }
-            console.log("Initial logs added to log pile. Total children in group:", logDropOffPileGroup.children.length);
+            console.log("Начальные бревна добавлены в поленницу. Всего элементов в группе:", logDropOffPileGroup.children.length);
         }
 
         /**
@@ -1603,7 +1618,6 @@
             const currentStones = collectedStonesCount;
             const stonesPerRow = 6; // Камни меньше, можно больше в ряд
             const stoneHeight = 0.6; // Примерная высота камня
-            const stoneWidth = 0.6; // Примерная ширина камня
 
             const row = Math.floor(currentStones / stonesPerRow);
             const col = currentStones % stonesPerRow;
@@ -1649,7 +1663,8 @@
                 if (distance < placementTolerance) {
                     let blockHeight = 0;
                     if (block.geometry.type === 'CylinderGeometry') {
-                        blockHeight = block.geometry.parameters.height;
+                        // Для цилиндров, которые лежат на боку, высота - это их диаметр
+                        blockHeight = block.geometry.parameters.radius * 2; 
                     } else if (block.geometry.type === 'SphereGeometry') {
                         blockHeight = block.geometry.parameters.radius * 2;
                     } else if (block.geometry.type === 'BoxGeometry') {
@@ -1665,7 +1680,7 @@
 
             let resourceHeight = 0;
             if (resourceType === 'log') {
-                resourceHeight = 1.0; // Высота бревна (цилиндр)
+                resourceHeight = 0.3; // Приблизительный диаметр, когда лежит плашмя
             } else if (resourceType === 'stone') {
                 resourceHeight = resourceMesh.geometry.parameters.radius * 2; // Диаметр камня (сфера)
             }
@@ -1685,21 +1700,14 @@
 
 
         /**
-         * Настраивает освещение сцены (окружающее, направленное, полусферное).
+         * Инициализирует источники света в сцене.
+         * Источники света создаются один раз и затем обновляются в цикле animate.
          */
-        function setupLighting() {
-            // Удаляем существующие источники света, чтобы избежать дублирования
-            scene.children.forEach(obj => {
-                if (obj instanceof THREE.Light) {
-                    scene.remove(obj);
-                }
-            });
-
-            const ambientLight = new THREE.AmbientLight(0x404040, daySettings.ambientIntensity);
+        function initializeLighting() {
+            ambientLight = new THREE.AmbientLight(0x404040, daySettings.ambientIntensity);
             scene.add(ambientLight);
 
-            const directionalLight = new THREE.DirectionalLight(daySettings.directionalColor, daySettings.directionalIntensity);
-            // Позиция DirectionalLight теперь зафиксирована, она не будет меняться между днем и ночью.
+            directionalLight = new THREE.DirectionalLight(daySettings.directionalColor, daySettings.directionalIntensity);
             directionalLight.position.copy(daySettings.directionalPosition); 
             directionalLight.castShadow = true;
 
@@ -1713,7 +1721,7 @@
             directionalLight.shadow.camera.bottom = -90; // Скорректировано для большего мира
             scene.add(directionalLight);
 
-            const hemisphereLight = new THREE.HemisphereLight(daySettings.hemisphereSkyColor, daySettings.hemisphereGroundColor, daySettings.hemisphereIntensity);
+            hemisphereLight = new THREE.HemisphereLight(daySettings.hemisphereSkyColor, daySettings.hemisphereGroundColor, daySettings.hemisphereIntensity);
             scene.add(hemisphereLight);
         }
 
@@ -1730,21 +1738,22 @@
             window.addEventListener('keydown', onKeyDown);
             window.addEventListener('keyup', onKeyUp);
 
-            // Обновляем обработчик для ползунка
             const dayNightSlider = document.getElementById('dayNightSlider');
-            dayNightSlider.addEventListener('input', (event) => {
-                // Значение ползунка от 0 до 100, преобразуем в 0.0 до 1.0
-                targetTransitionProgress = event.target.value / 100;
-                // Обновляем иконку в зависимости от положения ползунка
-                const dayNightIcon = document.getElementById('dayNightIcon');
-                if (targetTransitionProgress > 0.5) {
-                    dayNightIcon.textContent = '☀️';
-                    isDayTime = true;
-                } else {
-                    dayNightIcon.textContent = '🌙';
-                    isDayTime = false;
-                }
-            });
+            if (dayNightSlider) {
+                dayNightSlider.addEventListener('input', (event) => {
+                    isManualTimeControl = true; // Пользователь вручную изменяет время
+                    transitionProgress = event.target.value / 100;
+                    updateDayNightVisuals(transitionProgress); // Обновляем визуальные эффекты немедленно
+                });
+                dayNightSlider.addEventListener('mousedown', () => {
+                    isSliderDragging = true; // Начало перетаскивания
+                    isManualTimeControl = true; // Пользователь вручную изменяет время
+                });
+                dayNightSlider.addEventListener('mouseup', () => {
+                    isSliderDragging = false; // Конец перетаскивания
+                    // isManualTimeControl остается true, чтобы сохранить ручную настройку
+                });
+            }
         }
 
         // --- Обработчики событий ---
@@ -1882,7 +1891,6 @@
 
                         player.userData.hand.add(currentHeldResource); // Добавляем в руку
                         // Важно: не удаляем из сцены, так как он уже был частью сцены, просто меняем родителя
-                        // scene.remove(block); // Эту строку нужно убрать
                         placedBuildingBlocks.splice(i, 1); // Удаляем из массива размещенных блоков
                         playerHasResource = true;
                         pickedUp = true;
@@ -1917,7 +1925,7 @@
                                 pickedUp = true;
                                 break; 
                             }
-                        } else if (tree.userData.isCollectible && tree.userData.logsRemaining === 0) {
+                        } else if (tree.userData.isCollectible === false) { // Проверка на уже превращенный в пенек
                             const distanceToTree = playerPosition.distanceTo(tree.position);
                             if (distanceToTree < interactDistance) {
                                 console.log('Это дерево уже превратилось в пенек. Больше бревен нет.');
@@ -1944,15 +1952,17 @@
                                     console.log('Камень исчез!');
                                     scene.remove(stone); // Камень пропадает
                                     stone.userData.isCollectible = false; // Больше не собираемый
+                                    // Удаляем из массива, так как он исчез
+                                    collectibleStones.splice(i, 1);
                                 }
                                 pickedUp = true;
                                 break;
                             }
-                        } else if (stone.userData.isCollectible && stone.userData.logsRemaining === 0) {
+                        } else if (stone.userData.isCollectible === false) { // Проверка на уже исчезнувший камень
                              const distanceToStone = playerPosition.distanceTo(stone.position);
                              if (distanceToStone < interactDistance) {
-                                console.log('Этот камень уже исчерпан и исчез.');
-                            }
+                                 console.log('Этот камень уже исчерпан и исчез.');
+                             }
                         }
                     }
                 }
@@ -1964,11 +1974,276 @@
         }
 
         /**
-         * Переключает между дневными и ночными настройками с плавным переходом.
+         * Создает плотный лес в правом дальнем углу карты и размещает в нем оленей.
          */
-        function toggleDayNight() {
-            // Эта функция больше не используется напрямую, так как есть ползунок
+        function createDenseForestWithDeer() {
+            const forestMinX = 60; // Правый дальний угол
+            const forestMaxX = 90;
+            const forestMinZ = -90; // Правый дальний угол
+            const forestMaxZ = -60;
+            const treeCount = 100; // Увеличиваем количество деревьев для плотности
+
+            const deciduousTrunkMaterial = new THREE.MeshStandardMaterial({ color: 0x8B4513, roughness: 0.8 });
+            const deciduousFoliageMaterial = new THREE.MeshStandardMaterial({ color: 0x228B22, roughness: 0.7 });
+            const firTrunkMaterial = new THREE.MeshStandardMaterial({ color: 0x5C4033, roughness: 0.8 }); 
+            const firFoliageMaterial = new THREE.MeshStandardMaterial({ color: 0x006400, roughness: 0.7 }); 
+
+            for (let i = 0; i < treeCount; i++) {
+                const tree = new THREE.Group();
+                const treeX = forestMinX + Math.random() * (forestMaxX - forestMinX);
+                const treeZ = forestMinZ + Math.random() * (forestMaxZ - forestMinZ);
+
+                if (Math.random() > 0.5) { // Лиственное дерево
+                    const trunkGeometry = new THREE.CylinderGeometry(0.2, 0.3, 2, 8);
+                    const trunk = new THREE.Mesh(trunkGeometry, deciduousTrunkMaterial);
+                    trunk.position.y = 1;
+                    trunk.castShadow = true;
+                    trunk.receiveShadow = true;
+                    tree.add(trunk);
+
+                    const numFoliageSpheres = 3 + Math.floor(Math.random() * 3);
+                    for (let j = 0; j < numFoliageSpheres; j++) {
+                        const foliageGeometry = new THREE.SphereGeometry(0.8 + Math.random() * 0.4, 16, 16);
+                        const foliage = new THREE.Mesh(foliageGeometry, deciduousFoliageMaterial); 
+                        foliage.position.set(
+                            (Math.random() - 0.5) * 1.5, 
+                            2.5 + (Math.random() - 0.5) * 0.5, 
+                            (Math.random() - 0.5) * 1.5  
+                        );
+                        foliage.castShadow = true;
+                        tree.add(foliage);
+                    }
+                    tree.userData.originalFoliage = tree.children.filter(c => c.isMesh && c.geometry.type === 'SphereGeometry');
+                } else { // Ель
+                    const trunkGeometry = new THREE.CylinderGeometry(0.15, 0.25, 2.5, 8);
+                    const trunk = new THREE.Mesh(trunkGeometry, firTrunkMaterial);
+                    trunk.position.y = 1.25;
+                    trunk.castShadow = true;
+                    trunk.receiveShadow = true;
+                    tree.add(trunk);
+
+                    let foliageGeometry;
+                    let foliageMesh;
+
+                    foliageGeometry = new THREE.ConeGeometry(1.5, 2, 8); 
+                    foliageMesh = new THREE.Mesh(foliageGeometry, firFoliageMaterial);
+                    foliageMesh.position.y = 2.5;
+                    foliageMesh.castShadow = true;
+                    tree.add(foliageMesh);
+
+                    foliageGeometry = new THREE.ConeGeometry(1.0, 1.5, 8); 
+                    foliageMesh = new THREE.Mesh(foliageGeometry, firFoliageMaterial);
+                    foliageMesh.position.y = 3.5;
+                    foliageMesh.castShadow = true;
+                    tree.add(foliageMesh);
+
+                    foliageGeometry = new THREE.ConeGeometry(0.6, 1.0, 8); 
+                    foliageMesh = new THREE.Mesh(foliageGeometry, firFoliageMaterial); 
+                    foliageMesh.position.y = 4.2;
+                    foliageMesh.castShadow = true;
+                    tree.add(foliageMesh);
+                    tree.userData.originalFoliage = tree.children.filter(c => c.isMesh && c.geometry.type.includes('ConeGeometry'));
+                }
+
+                tree.position.x = treeX; 
+                tree.position.z = treeZ; 
+                tree.scale.setScalar(0.7 + Math.random() * 0.6); 
+                tree.userData.isCollectible = true;
+                tree.userData.type = 'log';
+                tree.userData.logsRemaining = 10;
+                collectibleTrees.push(tree);
+                scene.add(tree);
+            }
+
+            // Создаем оленей
+            const numDeer = 3;
+            for (let i = 0; i < numDeer; i++) {
+                const deerX = forestMinX + Math.random() * (forestMaxX - forestMinX);
+                const deerZ = forestMinZ + Math.random() * (forestMaxZ - forestMinZ);
+                createDeer(deerX, deerZ);
+            }
         }
+
+        /**
+         * Создает одного оленя.
+         * @param {number} x - Позиция X.
+         * @param {number} z - Позиция Z.
+         */
+        function createDeer(x, z) {
+            const deerGroup = new THREE.Group();
+            const deerMaterial = new THREE.MeshStandardMaterial({ color: 0x8B4513, roughness: 0.7 }); // Коричневый цвет оленя
+
+            // Тело
+            const bodyGeometry = new THREE.BoxGeometry(1.5, 0.8, 0.7);
+            const body = new THREE.Mesh(bodyGeometry, deerMaterial);
+            body.position.y = 0.4;
+            body.castShadow = true;
+            body.receiveShadow = true;
+            deerGroup.add(body);
+
+            // Шея
+            const neckGeometry = new THREE.CylinderGeometry(0.15, 0.15, 0.5, 8);
+            const neck = new THREE.Mesh(neckGeometry, deerMaterial);
+            neck.position.set(0.6, 0.8, 0);
+            neck.rotation.z = Math.PI / 4;
+            neck.castShadow = true;
+            neck.receiveShadow = true;
+            deerGroup.add(neck);
+
+            // Голова
+            const headGeometry = new THREE.SphereGeometry(0.3, 12, 12);
+            const head = new THREE.Mesh(headGeometry, deerMaterial);
+            head.position.set(0.9, 1.1, 0);
+            head.castShadow = true;
+            head.receiveShadow = true;
+            deerGroup.add(head);
+
+            // Уши (простые плоскости)
+            const earGeometry = new THREE.PlaneGeometry(0.2, 0.3);
+            const earMaterial = new THREE.MeshStandardMaterial({ color: 0x654321, side: THREE.DoubleSide });
+            const leftEar = new THREE.Mesh(earGeometry, earMaterial);
+            leftEar.position.set(0.95, 1.3, 0.15);
+            leftEar.rotation.y = Math.PI / 4;
+            leftEar.rotation.x = -Math.PI / 8;
+            deerGroup.add(leftEar);
+            const rightEar = new THREE.Mesh(earGeometry, earMaterial);
+            rightEar.position.set(0.95, 1.3, -0.15);
+            rightEar.rotation.y = -Math.PI / 4;
+            rightEar.rotation.x = -Math.PI / 8;
+            deerGroup.add(rightEar);
+
+            // Рога (простые цилиндры)
+            const antlerMaterial = new THREE.MeshStandardMaterial({ color: 0xA0522D, roughness: 0.7 });
+            const antlerBaseGeometry = new THREE.CylinderGeometry(0.05, 0.08, 0.4, 6);
+            const antlerBranchGeometry = new THREE.CylinderGeometry(0.03, 0.05, 0.3, 6);
+
+            const leftAntlerBase = new THREE.Mesh(antlerBaseGeometry, antlerMaterial);
+            leftAntlerBase.position.set(0.9, 1.4, 0.1);
+            leftAntlerBase.rotation.z = Math.PI / 6;
+            deerGroup.add(leftAntlerBase);
+
+            const leftAntlerBranch1 = new THREE.Mesh(antlerBranchGeometry, antlerMaterial);
+            leftAntlerBranch1.position.set(0.9 + 0.1, 1.4 + 0.2, 0.1 + 0.05);
+            leftAntlerBranch1.rotation.z = Math.PI / 3;
+            deerGroup.add(leftAntlerBranch1);
+
+            const rightAntlerBase = new THREE.Mesh(antlerBaseGeometry, antlerMaterial);
+            rightAntlerBase.position.set(0.9, 1.4, -0.1);
+            rightAntlerBase.rotation.z = Math.PI / 6;
+            deerGroup.add(rightAntlerBase);
+
+            const rightAntlerBranch1 = new THREE.Mesh(antlerBranchGeometry, antlerMaterial);
+            rightAntlerBranch1.position.set(0.9 + 0.1, 1.4 + 0.2, -0.1 - 0.05);
+            rightAntlerBranch1.rotation.z = Math.PI / 3;
+            deerGroup.add(rightAntlerBranch1);
+
+
+            // Ноги
+            const legGeometry = new THREE.CylinderGeometry(0.08, 0.08, 0.8, 8);
+            const legMaterial = new THREE.MeshStandardMaterial({ color: 0x654321, roughness: 0.7 });
+
+            const frontLeftLeg = new THREE.Mesh(legGeometry, legMaterial);
+            frontLeftLeg.position.set(0.5, 0.4, 0.3);
+            frontLeftLeg.castShadow = true;
+            frontLeftLeg.receiveShadow = true;
+            deerGroup.add(frontLeftLeg);
+
+            const frontRightLeg = new THREE.Mesh(legGeometry, legMaterial);
+            frontRightLeg.position.set(0.5, 0.4, -0.3);
+            frontRightLeg.castShadow = true;
+            frontRightLeg.receiveShadow = true;
+            deerGroup.add(frontRightLeg);
+
+            const backLeftLeg = new THREE.Mesh(legGeometry, legMaterial);
+            backLeftLeg.position.set(-0.5, 0.4, 0.3);
+            backLeftLeg.castShadow = true;
+            backLeftLeg.receiveShadow = true;
+            deerGroup.add(backLeftLeg);
+
+            const backRightLeg = new THREE.Mesh(legGeometry, legMaterial);
+            backRightLeg.position.set(-0.5, 0.4, -0.3);
+            backRightLeg.castShadow = true;
+            backRightLeg.receiveShadow = true;
+            deerGroup.add(backRightLeg);
+
+            deerGroup.position.set(x, 0, z);
+            deerGroup.rotation.y = Math.random() * Math.PI * 2; // Случайное начальное вращение
+            deerGroup.userData.oscillationOffset = Math.random() * Math.PI * 2; // Для покачивания
+            deerGroup.userData.head = head; // Сохраняем ссылку на голову для анимации
+            deerGroup.userData.neck = neck; // Сохраняем ссылку на шею для анимации
+
+            scene.add(deerGroup);
+            deer.push(deerGroup);
+        }
+
+        /**
+         * Создает маленькие цветы вокруг дома.
+         */
+        function createFlowers() {
+            const numFlowers = 50;
+            const flowerColors = [0xFFC0CB, 0xFFD700, 0x90EE90, 0xADD8E6, 0xFF6347]; // Розовый, золотой, светло-зеленый, светло-голубой, томатный
+            const stemMaterial = new THREE.MeshStandardMaterial({ color: 0x556B2F, roughness: 0.7 }); // Темно-зеленый
+            const petalGeometry = new THREE.SphereGeometry(0.08, 8, 8); // Маленькая сфера для лепестков
+            const centerGeometry = new THREE.SphereGeometry(0.04, 8, 8); // Еще меньше для центра
+
+            const houseRadius = 5; // Примерный радиус вокруг дома, где будут цветы
+            const exclusionBuffer = 1; // Буфер, чтобы не накладываться на дом
+
+            for (let i = 0; i < numFlowers; i++) {
+                const flowerGroup = new THREE.Group();
+                
+                let flowerX, flowerZ;
+                let isValidPosition = false;
+
+                while (!isValidPosition) {
+                    flowerX = (Math.random() - 0.5) * houseRadius * 2;
+                    flowerZ = (Math.random() - 0.5) * houseRadius * 2;
+
+                    // Проверяем, не слишком ли близко к дому
+                    const distanceToHouseCenter = Math.sqrt(
+                        Math.pow(flowerX, 2) + Math.pow(flowerZ, 2)
+                    );
+                    if (distanceToHouseCenter > (2 + exclusionBuffer) && distanceToHouseCenter < houseRadius + exclusionBuffer) { // Избегаем прямого наложения на дом
+                        isValidPosition = true;
+                    }
+                }
+
+                // Стебель
+                const stemHeight = 0.2 + Math.random() * 0.2;
+                const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, stemHeight, 4), stemMaterial);
+                stem.position.y = stemHeight / 2;
+                flowerGroup.add(stem);
+
+                // Случайный цвет для лепестков
+                const petalColor = flowerColors[Math.floor(Math.random() * flowerColors.length)];
+                const petalMaterial = new THREE.MeshStandardMaterial({ color: petalColor, roughness: 0.5 });
+                const centerMaterial = new THREE.MeshStandardMaterial({ color: 0xFFF000, roughness: 0.5 }); // Желтый центр
+
+                // Лепестки
+                const numPetals = 4 + Math.floor(Math.random() * 3); // 4-6 лепестков
+                for (let j = 0; j < numPetals; j++) {
+                    const angle = (j / numPetals) * Math.PI * 2;
+                    const petal = new THREE.Mesh(petalGeometry, petalMaterial);
+                    petal.position.set(
+                        Math.cos(angle) * 0.1,
+                        stemHeight + 0.05,
+                        Math.sin(angle) * 0.1
+                    );
+                    flowerGroup.add(petal);
+                }
+
+                // Центр цветка
+                const center = new THREE.Mesh(centerGeometry, centerMaterial);
+                center.position.y = stemHeight + 0.05;
+                flowerGroup.add(center);
+
+                flowerGroup.position.set(flowerX, 0, flowerZ);
+                flowerGroup.rotation.y = Math.random() * Math.PI * 2; // Случайное вращение
+                flowerGroup.scale.setScalar(0.8 + Math.random() * 0.4); // Случайный размер
+                scene.add(flowerGroup);
+            }
+        }
+
 
         /**
          * Обрабатывает изменение размера окна, чтобы сохранить правильное соотношение сторон рендерера и камеры.
@@ -1980,69 +2255,88 @@
         }
 
         /**
+         * Обновляет визуальные эффекты дня/ночи на основе transitionProgress.
+         * Вынесено в отдельную функцию, чтобы можно было вызывать как из animate, так и из обработчика ползунка.
+         * @param {number} progress - Значение от 0 (ночь) до 1 (день).
+         */
+        function updateDayNightVisuals(progress) {
+            const fogColorDay = new THREE.Color(daySettings.fogColor);
+            const fogColorNight = new THREE.Color(nightSettings.fogColor);
+            scene.fog.color.copy(fogColorNight).lerp(fogColorDay, progress);
+
+            const clearColorDay = new THREE.Color(daySettings.clearColor);
+            const clearColorNight = new THREE.Color(nightSettings.clearColor);
+            const currentClearColor = new THREE.Color().copy(clearColorNight).lerp(clearColorDay, progress);
+            renderer.setClearColor(currentClearColor, 1);
+
+            if (ambientLight) {
+                ambientLight.intensity = nightSettings.ambientIntensity + (daySettings.ambientIntensity - nightSettings.ambientIntensity) * progress;
+            }
+            if (directionalLight) {
+                const dirColorDay = new THREE.Color(daySettings.directionalColor);
+                const dirColorNight = new THREE.Color(nightSettings.directionalColor);
+                directionalLight.color.copy(dirColorNight).lerp(dirColorDay, progress);
+                directionalLight.intensity = nightSettings.directionalIntensity + (daySettings.directionalIntensity - nightSettings.directionalIntensity) * progress;
+                
+                directionalLight.position.x = nightSettings.directionalPosition.x + (daySettings.directionalPosition.x - nightSettings.directionalPosition.x) * progress;
+                directionalLight.position.y = nightSettings.directionalPosition.y + (daySettings.directionalPosition.y - nightSettings.directionalPosition.y) * progress;
+                directionalLight.position.z = nightSettings.directionalPosition.z + (daySettings.directionalPosition.z - nightSettings.directionalPosition.z) * progress;
+            }
+            if (hemisphereLight) {
+                const hemiSkyColorDay = new THREE.Color(daySettings.hemisphereSkyColor);
+                const hemiSkyColorNight = new THREE.Color(nightSettings.hemisphereSkyColor);
+                hemisphereLight.color.copy(hemiSkyColorNight).lerp(hemiSkyColorDay, progress);
+
+                const hemiGroundColorDay = new THREE.Color(daySettings.hemisphereGroundColor);
+                const hemiGroundColorNight = new THREE.Color(nightSettings.hemisphereGroundColor);
+                hemisphereLight.groundColor.copy(hemiGroundColorNight).lerp(hemiGroundColorDay, progress);
+                hemisphereLight.intensity = nightSettings.hemisphereIntensity + (daySettings.hemisphereIntensity - nightSettings.hemisphereIntensity) * progress;
+            }
+
+            windowLights.forEach(light => {
+                light.intensity = nightSettings.windowLightIntensity * (1 - progress);
+            });
+            barnLights.forEach(light => {
+                light.intensity = nightSettings.windowLightIntensity * (1 - progress);
+            });
+            quarryLights.forEach(light => {
+                light.intensity = nightSettings.windowLightIntensity * (1 - progress);
+            });
+
+            fireflies.forEach(firefly => {
+                firefly.material.opacity = (1 - progress) * 0.8;
+            });
+
+            const dayNightIcon = document.getElementById('dayNightIcon');
+            if (progress > 0.5) {
+                dayNightIcon.textContent = '☀️';
+                isDayTime = true;
+            } else {
+                dayNightIcon.textContent = '🌙';
+                isDayTime = false;
+            }
+
+            // Обновляем положение ползунка, если он не перетаскивается
+            const dayNightSlider = document.getElementById('dayNightSlider');
+            if (dayNightSlider && !isSliderDragging) {
+                dayNightSlider.value = progress * 100;
+            }
+        }
+
+
+        /**
          * Основной цикл анимации.
          */
         function animate() {
             requestAnimationFrame(animate);
 
-            // Логика плавного перехода дня/ночи
-            // isDayTime теперь определяется ползунком
-            if (transitionProgress !== targetTransitionProgress) {
-                const delta = targetTransitionProgress - transitionProgress;
-                // Уменьшаем скорость, чтобы переход был более плавным
-                const currentTransitionSpeed = Math.abs(delta) < transitionSpeed ? Math.abs(delta) : transitionSpeed;
-                transitionProgress += Math.sign(delta) * currentTransitionSpeed;
-
-                transitionProgress = Math.max(0, Math.min(1, transitionProgress));
-
-                const fogColorDay = new THREE.Color(daySettings.fogColor);
-                const fogColorNight = new THREE.Color(nightSettings.fogColor);
-                scene.fog.color.copy(fogColorNight).lerp(fogColorDay, transitionProgress);
-
-                const clearColorDay = new THREE.Color(daySettings.clearColor);
-                const clearColorNight = new THREE.Color(nightSettings.clearColor);
-                const currentClearColor = new THREE.Color().copy(clearColorNight).lerp(clearColorDay, transitionProgress);
-                renderer.setClearColor(currentClearColor, 1);
-
-                const ambientLight = scene.children.find(obj => obj instanceof THREE.AmbientLight);
-                const directionalLight = scene.children.find(obj => obj instanceof THREE.DirectionalLight);
-                const hemisphereLight = scene.children.find(obj => obj instanceof THREE.HemisphereLight);
-
-                if (ambientLight) {
-                    ambientLight.intensity = nightSettings.ambientIntensity + (daySettings.ambientIntensity - nightSettings.ambientIntensity) * transitionProgress;
-                }
-                if (directionalLight) {
-                    const dirColorDay = new THREE.Color(daySettings.directionalColor);
-                    const dirColorNight = new THREE.Color(nightSettings.directionalColor);
-                    directionalLight.color.copy(dirColorNight).lerp(dirColorDay, transitionProgress);
-                }
-                if (hemisphereLight) {
-                    const hemiSkyColorDay = new THREE.Color(daySettings.hemisphereSkyColor);
-                    const hemiSkyColorNight = new THREE.Color(nightSettings.hemisphereSkyColor);
-                    hemisphereLight.color.copy(hemiSkyColorNight).lerp(hemiSkyColorDay, transitionProgress);
-
-                    const hemiGroundColorDay = new THREE.Color(daySettings.hemisphereGroundColor);
-                    const hemiGroundColorNight = new THREE.Color(nightSettings.hemisphereGroundColor);
-                    hemisphereLight.groundColor.copy(hemiGroundColorNight).lerp(hemiGroundColorDay, transitionProgress);
-                    hemisphereLight.intensity = nightSettings.hemisphereIntensity + (daySettings.hemisphereIntensity - nightSettings.hemisphereIntensity) * transitionProgress;
-                }
-
-                // Обновление интенсивности света в окнах и зданиях
-                windowLights.forEach(light => {
-                    light.intensity = nightSettings.windowLightIntensity * (1 - transitionProgress); // Макс ночью, мин днем
-                });
-                barnLights.forEach(light => {
-                    light.intensity = nightSettings.windowLightIntensity * (1 - transitionProgress);
-                });
-                quarryLights.forEach(light => {
-                    light.intensity = nightSettings.windowLightIntensity * (1 - transitionProgress);
-                });
-
-                // Обновление прозрачности светлячков во время перехода
-                fireflies.forEach(firefly => {
-                    firefly.material.opacity = (1 - transitionProgress) * 0.8; // Максимальная прозрачность ночью
-                });
+            // Автоматическая смена дня/ночи, если ползунок не перетаскивается
+            if (!isManualTimeControl) { // Используем isManualTimeControl
+                const timeInCycle = Date.now() % dayNightCycleDuration;
+                transitionProgress = (Math.sin(timeInCycle * Math.PI / halfDayNightCycle + Math.PI / 2) + 1) / 2;
             }
+            
+            updateDayNightVisuals(transitionProgress); // Обновляем визуальные эффекты
 
             updatePlayer();
 
@@ -2115,6 +2409,19 @@
                 // Анимация покачивания относительно земли (y=0)
                 rabbit.position.y = Math.sin(Date.now() * 0.005 + rabbit.userData.offset) * 0.05; 
             });
+
+            // Анимация оленей (покачивание головой/шеей)
+            deer.forEach(d => {
+                // Небольшое покачивание головой
+                if (d.userData.head) {
+                    d.userData.head.rotation.y = Math.sin(Date.now() * 0.002 + d.userData.oscillationOffset) * 0.1;
+                }
+                // Небольшое покачивание шеей
+                if (d.userData.neck) {
+                    d.userData.neck.rotation.y = Math.sin(Date.now() * 0.0025 + d.userData.oscillationOffset + 0.5) * 0.05;
+                }
+            });
+
 
             // Анимация облаков
             clouds.forEach(cloud => {
@@ -2244,7 +2551,7 @@
             createGround();
             createTrees();  // Теперь эта функция создает все лиственные и еловые деревья как собираемые
             createRocks();  // Теперь эта функция создает все камни как собираемые
-            createLake();   
+            createLake();    
             createSmokeParticles();
             createLakeVegetation(); 
             createPierAndBoat(); 
@@ -2257,6 +2564,8 @@
             createLilyPads(); // Добавляем кувшинки
             createBird(); // Добавляем птицу
             createFireflies(); // Добавляем светлячков
+            createDenseForestWithDeer(); // Создаем густой лес с оленями
+            createFlowers(); // Создаем цветы
 
             // Создаем сарайчик (лесопилку)
             const barn = createBarn();
@@ -2267,18 +2576,15 @@
             const quarry = createQuarry();
             createStoneDropOffPile(quarry);
             
-            // Настраиваем освещение и элементы управления
-            setupLighting(); 
+            // Инициализируем освещение (создаем источники света)
+            initializeLighting(); 
+            // Настраиваем элементы управления
             setupControls();
 
             // Начальное состояние дня/ночи
-            // Устанавливаем ползунок в начальное положение (день)
-            const dayNightSlider = document.getElementById('dayNightSlider');
-            dayNightSlider.value = 100; // 100% для дня
-            targetTransitionProgress = 1; // 1 = день
+            // Поскольку цикл автоматический, просто устанавливаем начальное состояние иконки
             const dayNightIcon = document.getElementById('dayNightIcon');
-            dayNightIcon.textContent = '☀️';
-
+            dayNightIcon.textContent = '☀️'; // Начинаем с дня
 
             // Запускаем цикл анимации
             animate();
