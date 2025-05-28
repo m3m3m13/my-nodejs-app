@@ -120,6 +120,12 @@
             font-size: 16px;
             font-weight: bold;
         }
+
+        #resource-counters {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
     </style>
 </head>
 <body>
@@ -130,7 +136,7 @@
             <p>🔄 Колесо: приближение</p>
             <p>🚶 <span class="key">WASD</span> или <span class="key">↑↓←→</span>: движение</p>
             <p>🏃 <span class="key">Shift</span>: бег</p>
-            <p>🪵 <span class="key">E</span>: Взаимодействие (взять/положить бревно)</p>
+            <p>🪵 <span class="key">E</span>: Взаимодействие (взять/положить ресурс)</p>
         </div>
 
         <div id="info">
@@ -138,7 +144,10 @@
         </div>
 
         <div id="game-ui">
-            Бревна собраны: <span id="collectedLogsCount">0</span>
+            <div id="resource-counters">
+                <span>Бревна собраны: <span id="collectedLogsCount">0</span></span>
+                <span>Камни собраны: <span id="collectedStonesCount">0</span></span>
+            </div>
         </div>
     </div>
 
@@ -161,12 +170,17 @@
         let bird; // Объект птицы
 
         // Игровые переменные
-        let playerHasLog = false;
-        let currentHeldLog = null;
+        let playerHasResource = false; // Может держать либо бревно, либо камень
+        let currentHeldResource = null; // Текущий удерживаемый ресурс (THREE.Mesh)
+        let currentResourceType = null; // 'log' или 'stone'
         let collectedLogsCount = 0;
-        let logPileGroup = null; // Группа для динамически добавляемых бревен
+        let collectedStonesCount = 0;
+        let logDropOffPileGroup = null; // Группа для динамически добавляемых бревен у сарайчика (лесопилки)
+        let stoneDropOffPileGroup = null; // Группа для динамически добавляемых камней у каменоломни
+        let quarryHouse = null; // Дом каменоломни
         const interactDistance = 3; // Расстояние для взаимодействия (подбора/выгрузки)
-        let collectibleTrees = []; // Массив для всех собираемых деревьев (лиственных и хвойных)
+        let collectibleTrees = []; // Массив для всех собираемых деревьев
+        let collectibleStones = []; // Массив для всех собираемых камней (теперь генерируются в createRocks)
 
         let transitionProgress = 1; 
         let transitionSpeed = 0.02; 
@@ -424,7 +438,7 @@
             player.add(rightLeg);
             player.userData.rightLeg = rightLeg; 
 
-            // Точка крепления для бревна в руке игрока
+            // Точка крепления для бревна/камня в руке игрока
             player.userData.hand = new THREE.Group();
             player.userData.hand.position.set(0.4, 1.0, 0.3); // Примерное положение в руке
             player.add(player.userData.hand);
@@ -485,6 +499,14 @@
             const barnMaxZ = 40 + 2;
             const barnBuffer = 3; // Буферная зона вокруг сарайчика
 
+            // Определяем ограничивающий прямоугольник каменоломни для обнаружения столкновений
+            const quarryMinX = 40 - 2; // Позиция каменоломни 40, размер 5
+            const quarryMaxX = 40 + 2;
+            const quarryMinZ = -40 - 2;
+            const quarryMaxZ = -40 + 2;
+            const quarryBuffer = 3; // Буферная зона вокруг каменоломни
+
+
             // Лиственные деревья
             const deciduousTrunkMaterial = new THREE.MeshStandardMaterial({ color: 0x8B4513, roughness: 0.8 });
             const deciduousFoliageMaterial = new THREE.MeshStandardMaterial({ color: 0x228B22, roughness: 0.7 });
@@ -494,7 +516,7 @@
                 let treeX, treeZ;
                 let isValidPosition = false;
 
-                // Продолжаем генерировать случайные позиции, пока она не окажется за пределами дома, озера и сарайчика
+                // Продолжаем генерировать случайные позиции, пока она не окажется за пределами дома, озера, сарайчика и каменоломни
                 while (!isValidPosition) {
                     treeX = -90 + Math.random() * 180; // Удвоенный диапазон
                     treeZ = -90 + Math.random() * 180; // Удвоенный диапазон
@@ -513,14 +535,18 @@
                     // Проверяем, не слишком ли дерево близко к сарайчику
                     const isNearBarn = (treeX >= barnMinX - barnBuffer && treeX <= barnMaxX + barnBuffer &&
                                         treeZ >= barnMinZ - barnBuffer && treeZ <= barnMaxZ + barnBuffer);
+                    
+                    // Проверяем, не слишком ли дерево близко к каменоломне
+                    const isNearQuarry = (treeX >= quarryMinX - quarryBuffer && treeX <= quarryMaxX + quarryBuffer &&
+                                          treeZ >= quarryMinZ - quarryBuffer && treeZ <= quarryMaxZ + quarryBuffer);
 
-                    if (!isNearHouse && !isNearLake && !isNearBarn) {
+                    if (!isNearHouse && !isNearLake && !isNearBarn && !isNearQuarry) {
                         isValidPosition = true;
                     }
                 }
                 
                 const trunkGeometry = new THREE.CylinderGeometry(0.2, 0.3, 2, 8); // Увеличено количество сегментов
-                const trunk = new THREE.Mesh(trunkGeometry, deciduousTrunkMaterial);
+                const trunk = new THREE.Mesh(trunkGeometry, deciduousTrunkMaterial); // Используем обычный материал ствола
                 trunk.position.y = 1;
                 trunk.castShadow = true;
                 trunk.receiveShadow = true;
@@ -544,6 +570,7 @@
                 tree.position.z = treeZ; 
                 tree.scale.setScalar(0.7 + Math.random() * 0.6); 
                 tree.userData.isCollectible = true; // Помечаем, что это дерево, с которого можно взять бревно
+                tree.userData.type = 'log'; // Тип ресурса
                 tree.userData.logsRemaining = 10; // Изначально имеет 10 бревен
                 tree.userData.originalFoliage = tree.children.filter(c => c.isMesh && c.geometry.type === 'SphereGeometry'); // Сохраняем ссылки на листву
                 collectibleTrees.push(tree); // Добавляем в массив собираемых деревьев
@@ -559,7 +586,7 @@
                 let treeX, treeZ;
                 let isValidPosition = false;
 
-                // Продолжаем генерировать случайные позиции, пока она не окажется за пределами дома, озера и сарайчика
+                // Продолжаем генерировать случайные позиции, пока она не окажется за пределами дома, озера, сарайчика и каменоломни
                 while (!isValidPosition) {
                     treeX = -90 + Math.random() * 180; // Удвоенный диапазон
                     treeZ = -90 + Math.random() * 180; // Удвоенный диапазон
@@ -579,7 +606,12 @@
                     const isNearBarn = (treeX >= barnMinX - barnBuffer && treeX <= barnMaxX + barnBuffer &&
                                         treeZ >= barnMinZ - barnBuffer && treeZ <= barnMaxZ + barnBuffer);
 
-                    if (!isNearHouse && !isNearLake && !isNearBarn) {
+                    // Проверяем, не слишком ли дерево близко к каменоломне
+                    const isNearQuarry = (treeX >= quarryMinX - quarryBuffer && treeX <= quarryMaxX + quarryBuffer &&
+                                          treeZ >= quarryMinZ - quarryBuffer && treeZ <= quarryMaxZ + quarryBuffer);
+
+
+                    if (!isNearHouse && !isNearLake && !isNearBarn && !isNearQuarry) {
                         isValidPosition = true;
                     }
                 }
@@ -617,6 +649,7 @@
                 firTree.position.z = treeZ; 
                 firTree.scale.setScalar(0.8 + Math.random() * 0.7); 
                 firTree.userData.isCollectible = true; // Помечаем, что это дерево, с которого можно взять бревно
+                firTree.userData.type = 'log'; // Тип ресурса
                 firTree.userData.logsRemaining = 10; // Изначально имеет 10 бревен
                 firTree.userData.originalFoliage = firTree.children.filter(c => c.isMesh && c.geometry.type.includes('ConeGeometry')); // Сохраняем ссылки на листву
                 collectibleTrees.push(firTree); // Добавляем в массив собираемых деревьев
@@ -863,6 +896,13 @@
             const barnMaxZ = 40 + 2;
             const barnBuffer = 3; // Буферная зона вокруг сарайчика
 
+            // Определяем ограничивающий прямоугольник каменоломни для обнаружения столкновений
+            const quarryMinX = 40 - 2; // Позиция каменоломни 40, размер 5
+            const quarryMaxX = 40 + 2;
+            const quarryMinZ = -40 - 2;
+            const quarryMaxZ = -40 + 2;
+            const quarryBuffer = 3; // Буферная зона вокруг каменоломни
+
             // Свойства движения для кроликов (плавная осцилляция)
             const rabbitOscillationSpeed = 0.001; // Более низкая скорость для осцилляции
             const rabbitOscillationAmplitude = 5; // Увеличена амплитуда для более заметного движения
@@ -891,7 +931,12 @@
                     const isNearBarn = (rabbitX >= barnMinX - barnBuffer && rabbitX <= barnMaxX + barnBuffer &&
                                         rabbitZ >= barnMinZ - barnBuffer && rabbitZ <= barnMaxZ + barnBuffer);
 
-                    if (!isNearHouse && !isNearLake && !isNearBarn) {
+                    // Проверяем, не слишком ли кролик близко к каменоломне
+                    const isNearQuarry = (rabbitX >= quarryMinX - quarryBuffer && rabbitX <= quarryMaxX + quarryBuffer &&
+                                          rabbitZ >= quarryMinZ - quarryBuffer && rabbitZ <= quarryMaxZ + quarryBuffer);
+
+
+                    if (!isNearHouse && !isNearLake && !isNearBarn && !isNearQuarry) {
                         isValidPosition = true;
                     }
                 }
@@ -977,25 +1022,30 @@
         }
 
         /**
-         * Создает разбросанные камни/камни по местности.
+         * Создает разбросанные камни/камни по местности, которые теперь также собираемы.
          */
         function createRocks() {
-            const numRocks = 100;
+            const numRocks = 150; // Увеличено количество разбросанных камней
             const rockMaterial = new THREE.MeshStandardMaterial({ color: 0x808080, roughness: 0.9, metalness: 0.0 }); // Серый цвет камня
 
-            // Определяем зоны исключения (дом и озеро)
+            // Определяем зоны исключения (дом, озеро, сарайчик, каменоломня)
             const houseMinX = -2; const houseMaxX = 2;
             const houseMinZ = -2; const houseMaxZ = 2;
             const lakeCenterX = 60; const lakeCenterZ = 0;
             const lakeRadius = 30;
             const exclusionBuffer = 5; // Буферная зона вокруг дома/озера
 
-            // Определяем ограничивающий прямоугольник сарайчика для обнаружения столкновений
-            const barnMinX = -40 - 2; // Позиция сарайчика -2.5, размер 5
+            const barnMinX = -40 - 2;
             const barnMaxX = -40 + 2;
             const barnMinZ = 40 - 2;
             const barnMaxZ = 40 + 2;
-            const barnBuffer = 3; // Буферная зона вокруг сарайчика
+            const barnBuffer = 3;
+
+            const quarryMinX = 40 - 2;
+            const quarryMaxX = 40 + 2;
+            const quarryMinZ = -40 - 2;
+            const quarryMaxZ = -40 + 2;
+            const quarryBuffer = 3;
 
             for (let i = 0; i < numRocks; i++) {
                 let rockX, rockZ;
@@ -1016,7 +1066,10 @@
                     const isNearBarn = (rockX >= barnMinX - barnBuffer && rockX <= barnMaxX + barnBuffer &&
                                         rockZ >= barnMinZ - barnBuffer && rockZ <= barnMaxZ + barnBuffer);
 
-                    if (!isNearHouse && !isNearLake && !isNearBarn) {
+                    const isNearQuarry = (rockX >= quarryMinX - quarryBuffer && rockX <= quarryMaxX + quarryBuffer &&
+                                          rockZ >= quarryMinZ - quarryBuffer && rockZ <= quarryMaxZ + quarryBuffer);
+
+                    if (!isNearHouse && !isNearLake && !isNearBarn && !isNearQuarry) {
                         isValidPosition = true;
                     }
                 }
@@ -1024,16 +1077,23 @@
                 // Случайный выбор между сферической или кубической геометрией для разнообразия
                 let rockGeometry;
                 if (Math.random() > 0.5) {
-                    rockGeometry = new THREE.SphereGeometry(0.2 + Math.random() * 0.4, 8, 8); // Маленькие сферы
+                    rockGeometry = new THREE.SphereGeometry(0.3 + Math.random() * 0.3, 8, 8); // Немного больше для заметности
                 } else {
-                    rockGeometry = new THREE.BoxGeometry(0.3 + Math.random() * 0.5, 0.1 + Math.random() * 0.3, 0.3 + Math.random() * 0.5); // Плоские кубы
+                    rockGeometry = new THREE.BoxGeometry(0.4 + Math.random() * 0.6, 0.2 + Math.random() * 0.4, 0.4 + Math.random() * 0.6);
                 }
                 
                 const rock = new THREE.Mesh(rockGeometry, rockMaterial);
-                rock.position.set(rockX, rockGeometry.parameters.height / 2 || rockGeometry.parameters.radius || 0.1, rockZ); // Размещаем на земле
-                rock.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI); // Случайное вращение
+                rock.position.set(rockX, rockGeometry.parameters.height / 2 || rockGeometry.parameters.radius || 0.15, rockZ); // Немного выше
+                rock.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
                 rock.castShadow = true;
                 rock.receiveShadow = true;
+
+                // Помечаем камень как собираемый
+                rock.userData.isCollectible = true;
+                rock.userData.type = 'stone';
+                rock.userData.logsRemaining = 10; // 10 "ударов" до исчезновения (переименовано для совместимости)
+
+                collectibleStones.push(rock); // Добавляем в массив собираемых камней
                 scene.add(rock);
             }
         }
@@ -1311,21 +1371,40 @@
             barn.position.set(-40, 0, 40); // Примерные координаты в лесу
             scene.add(barn);
 
-            return barn; // Возвращаем сарайчик для позиционирования поленницы
+            return barn; // Возвращаем сарайчик
         }
 
         /**
-         * Создает поленницу рядом с сарайчиком.
+         * Создает поленницу рядом с сарайчиком (лесопилкой).
          * @param {THREE.Group} barn - Объект сарайчика, рядом с которым будет размещена поленница.
          */
         function createFirewoodPile(barn) {
-            logPileGroup = new THREE.Group(); // Инициализируем глобальную группу для поленницы
-            // Изначально поленница пуста, бревна будут добавляться динамически
+            logDropOffPileGroup = new THREE.Group(); // Инициализируем глобальную группу для поленницы
             
             // Размещаем поленницу рядом с сарайчиком
-            logPileGroup.position.set(barn.position.x + 3.5, 0, barn.position.z + 0.5); // Смещение относительно сарайчика
-            logPileGroup.rotation.y = Math.PI / 6; // Немного поворачиваем
-            scene.add(logPileGroup);
+            logDropOffPileGroup.position.set(barn.position.x + 3.5, 0, barn.position.z + 0.5); // Смещение относительно сарайчика
+            logDropOffPileGroup.rotation.y = Math.PI / 6; // Немного поворачиваем
+            scene.add(logDropOffPileGroup);
+            console.log("Log drop-off pile (at sawmill) created at:", logDropOffPileGroup.position);
+
+            // Добавляем несколько начальных бревен к поленнице
+            const initialLogsCount = 20; // Увеличено количество бревен
+            for (let i = 0; i < initialLogsCount; i++) {
+                const log = createCollectibleLog(); // Используем ту же функцию для создания бревна
+                // Позиционируем их внутри группы logDropOffPileGroup
+                const logsPerRow = 8;
+                const logHeight = 0.3;
+                const row = Math.floor(i / logsPerRow);
+                const col = i % logsPerRow;
+                const xOffset = (col * 0.3) - (logsPerRow * 0.3 / 2) + 0.15;
+                const yOffset = (row * logHeight) + 0.15;
+                const zOffset = (Math.random() - 0.5) * 0.1;
+                log.position.set(xOffset, yOffset, zOffset);
+                log.rotation.z = Math.PI / 2;
+                log.rotation.y = (Math.random() - 0.5) * 0.2;
+                logDropOffPileGroup.add(log);
+            }
+            console.log("Initial logs added to log pile. Total children in group:", logDropOffPileGroup.children.length);
         }
 
         /**
@@ -1339,6 +1418,7 @@
             log.rotation.z = Math.PI / 2; // Горизонтально
             log.castShadow = true;
             log.receiveShadow = true;
+            log.userData.type = 'log'; // Помечаем тип ресурса
             return log;
         }
 
@@ -1347,7 +1427,7 @@
          * @param {THREE.Mesh} logMesh - Меш бревна, которое нужно добавить.
          */
         function addLogToPile(logMesh) {
-            if (!logPileGroup) return;
+            if (!logDropOffPileGroup) return;
 
             // Вычисляем позицию для нового бревна в поленнице
             const currentLogs = collectedLogsCount; // Используем collectedLogsCount для определения позиции
@@ -1366,7 +1446,113 @@
             logMesh.rotation.z = Math.PI / 2; // Горизонтально
             logMesh.rotation.y = (Math.random() - 0.5) * 0.2; // Небольшой случайный поворот
 
-            logPileGroup.add(logMesh);
+            logDropOffPileGroup.add(logMesh);
+        }
+
+        /**
+         * Создает каменоломню (новый домик).
+         */
+        function createQuarry() {
+            quarryHouse = new THREE.Group();
+            const quarryStoneMaterial = new THREE.MeshStandardMaterial({ color: 0x708090, roughness: 0.8 }); // Серый камень
+            const quarryRoofMaterial = new THREE.MeshStandardMaterial({ color: 0x4A4A4A, roughness: 0.7 }); // Темно-серый
+
+            // Тело каменоломни
+            const quarryBodyGeometry = new THREE.BoxGeometry(6, 4, 5);
+            const quarryBody = new THREE.Mesh(quarryBodyGeometry, quarryStoneMaterial);
+            quarryBody.position.y = 2;
+            quarryBody.castShadow = true;
+            quarryBody.receiveShadow = true;
+            quarryHouse.add(quarryBody);
+
+            // Крыша каменоломни (плоская, но с небольшим уклоном)
+            const quarryRoofGeometry = new THREE.BoxGeometry(6.2, 0.5, 5.2);
+            const quarryRoof = new THREE.Mesh(quarryRoofGeometry, quarryRoofMaterial);
+            quarryRoof.position.y = 4 + 0.25;
+            quarryRoof.rotation.x = -Math.PI / 60; // Небольшой наклон
+            quarryRoof.castShadow = true;
+            quarryHouse.add(quarryRoof);
+
+            // Вход в каменоломню
+            const quarryDoorGeometry = new THREE.BoxGeometry(1.5, 2.5, 0.1);
+            const quarryDoorMaterial = new THREE.MeshStandardMaterial({ color: 0x303030, roughness: 0.6 });
+            const quarryDoor = new THREE.Mesh(quarryDoorGeometry, quarryDoorMaterial);
+            quarryDoor.position.set(0, 1.25, 2.55);
+            quarryDoor.castShadow = true;
+            quarryHouse.add(quarryDoor);
+
+            // Размещаем каменоломню
+            quarryHouse.position.set(40, 0, -40); // В другой стороне от домиков
+            scene.add(quarryHouse);
+
+            return quarryHouse;
+        }
+
+        /**
+         * Создает один камень, который может быть подобран игроком.
+         * @returns {THREE.Mesh} Меш камня.
+         */
+        function createCollectibleStone() {
+            const stoneGeometry = new THREE.SphereGeometry(0.3 + Math.random() * 0.2, 8, 8);
+            const stoneMaterial = new THREE.MeshStandardMaterial({ color: 0x808080, roughness: 0.9, metalness: 0.0 });
+            const stone = new THREE.Mesh(stoneGeometry, stoneMaterial);
+            stone.castShadow = true;
+            stone.receiveShadow = true;
+            stone.userData.type = 'stone'; // Помечаем тип ресурса
+            return stone;
+        }
+
+        /**
+         * Создает кучу камней рядом с каменоломней.
+         * @param {THREE.Group} quarry - Объект каменоломни.
+         */
+        function createStoneDropOffPile(quarry) {
+            stoneDropOffPileGroup = new THREE.Group();
+            stoneDropOffPileGroup.position.set(quarry.position.x - 3.5, 0, quarry.position.z - 0.5); // Место для складывания камней
+            stoneDropOffPileGroup.rotation.y = -Math.PI / 4; // Немного поворачиваем
+            scene.add(stoneDropOffPileGroup);
+
+            // Добавляем несколько начальных камней к куче
+            const initialStonesCount = 10; // Например, 10 камней изначально
+            for (let i = 0; i < initialStonesCount; i++) {
+                const stone = createCollectibleStone(); // Используем ту же функцию для создания камня
+                // Позиционируем их внутри группы stoneDropOffPileGroup
+                const stonesPerRow = 6;
+                const stoneHeight = 0.6;
+                const row = Math.floor(i / stonesPerRow);
+                const col = i % stonesPerRow;
+                const xOffset = (col * 0.5) - (stonesPerRow * 0.5 / 2) + 0.25;
+                const yOffset = (row * stoneHeight) + 0.15;
+                const zOffset = (Math.random() - 0.5) * 0.1;
+                stone.position.set(xOffset, yOffset, zOffset);
+                stone.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
+                stoneDropOffPileGroup.add(stone);
+            }
+        }
+
+        /**
+         * Добавляет камень к куче камней.
+         * @param {THREE.Mesh} stoneMesh - Меш камня, который нужно добавить.
+         */
+        function addStoneToPile(stoneMesh) {
+            if (!stoneDropOffPileGroup) return;
+
+            const currentStones = collectedStonesCount;
+            const stonesPerRow = 6; // Камни меньше, можно больше в ряд
+            const stoneHeight = 0.6; // Примерная высота камня
+            const stoneWidth = 0.6; // Примерная ширина камня
+
+            const row = Math.floor(currentStones / stonesPerRow);
+            const col = currentStones % stonesPerRow;
+
+            const xOffset = (col * 0.5) - (stonesPerRow * 0.5 / 2) + 0.25;
+            const yOffset = (row * stoneHeight) + 0.15;
+            const zOffset = (Math.random() - 0.5) * 0.1;
+
+            stoneMesh.position.set(xOffset, yOffset, zOffset);
+            stoneMesh.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI); // Случайное вращение
+            
+            stoneDropOffPileGroup.add(stoneMesh);
         }
 
 
@@ -1485,57 +1671,75 @@
         }
 
         /**
-         * Обрабатывает взаимодействие игрока (подбор/выгрузка бревна).
+         * Обрабатывает взаимодействие игрока (подбор/выгрузка ресурса).
          */
         function handleInteraction() {
-            if (playerHasLog) {
-                // Игрок держит бревно, пытается выгрузить его у сарайчика
-                const distanceToBarn = playerPosition.distanceTo(logPileGroup.position);
-                console.log('Игрок держит бревно. Расстояние до сарайчика (для выгрузки): ' + distanceToBarn.toFixed(2));
-                if (distanceToBarn < interactDistance + 2) { // Немного больший радиус для выгрузки
-                    player.userData.hand.remove(currentHeldLog); // Удаляем бревно из руки
-                    
-                    // Добавляем бревно к поленнице визуально
-                    addLogToPile(currentHeldLog); 
-                    
-                    currentHeldLog = null;
-                    playerHasLog = false;
-                    collectedLogsCount++;
-                    document.getElementById('collectedLogsCount').textContent = collectedLogsCount;
-                    console.log('Бревно выгружено! Всего собрано: ' + collectedLogsCount);
-                } else {
-                    console.log('Вы слишком далеко от сарайчика, чтобы выгрузить бревно. Подойдите ближе.');
+            if (playerHasResource) {
+                // Игрок держит ресурс, пытается выгрузить его
+                let deposited = false;
+                if (currentResourceType === 'log') {
+                    // Попытка выгрузить бревно у поленницы сарайчика (лесопилки)
+                    const distanceToLogPile = playerPosition.distanceTo(logDropOffPileGroup.position);
+                    console.log('Игрок держит бревно. Расстояние до поленницы (для выгрузки): ' + distanceToLogPile.toFixed(2));
+                    if (distanceToLogPile < interactDistance + 2) { 
+                        player.userData.hand.remove(currentHeldResource);
+                        addLogToPile(currentHeldResource); 
+                        collectedLogsCount++;
+                        document.getElementById('collectedLogsCount').textContent = collectedLogsCount;
+                        console.log('Бревно выгружено! Всего собрано: ' + collectedLogsCount);
+                        deposited = true;
+                    } else {
+                        console.log('Вы слишком далеко от поленницы, чтобы выгрузить бревно. Подойдите ближе.');
+                    }
+                } else if (currentResourceType === 'stone') {
+                    // Попытка выгрузить камень у кучи камней каменоломни
+                    const distanceToStonePile = playerPosition.distanceTo(stoneDropOffPileGroup.position);
+                    console.log('Игрок держит камень. Расстояние до кучи камней (для выгрузки): ' + distanceToStonePile.toFixed(2));
+                    if (distanceToStonePile < interactDistance + 2) { 
+                        player.userData.hand.remove(currentHeldResource);
+                        addStoneToPile(currentHeldResource);
+                        collectedStonesCount++;
+                        document.getElementById('collectedStonesCount').textContent = collectedStonesCount;
+                        console.log('Камень выгружен! Всего собрано: ' + collectedStonesCount);
+                        deposited = true;
+                    } else {
+                        console.log('Вы слишком далеко от кучи камней, чтобы выгрузить камень. Подойдите ближе.');
+                    }
+                }
+
+                if (deposited) {
+                    currentHeldResource = null;
+                    playerHasResource = false;
+                    currentResourceType = null;
                 }
             } else {
-                // Игрок не держит бревно, пытается подобрать его у дерева
+                // Игрок не держит ресурс, пытается подобрать его
                 let pickedUp = false;
+                
+                // Поиск дерева для бревна
                 for (let i = 0; i < collectibleTrees.length; i++) {
                     const tree = collectibleTrees[i];
-                    // Проверяем, является ли дерево собираемым и есть ли на нем бревна
                     if (tree.userData.isCollectible && tree.userData.logsRemaining > 0) {
                         const distanceToTree = playerPosition.distanceTo(tree.position);
                         console.log('Расстояние до дерева (для подбора): ' + distanceToTree.toFixed(2) + '. Бревна остались: ' + tree.userData.logsRemaining);
                         if (distanceToTree < interactDistance) {
-                            currentHeldLog = createCollectibleLog();
-                            player.userData.hand.add(currentHeldLog); // Добавляем бревно в руку игрока
-                            playerHasLog = true;
-                            tree.userData.logsRemaining--; // Уменьшаем количество бревен на дереве
-                            console.log('Бревно подобрано! Бревна остались на дереве: ' + tree.userData.logsRemaining);
-
+                            currentHeldResource = createCollectibleLog();
+                            player.userData.hand.add(currentHeldResource);
+                            playerHasResource = true;
+                            currentResourceType = 'log';
+                            tree.userData.logsRemaining--;
+                            
                             if (tree.userData.logsRemaining === 0) {
                                 console.log('Дерево превращается в пенек!');
-                                // Удаляем листву
                                 tree.userData.originalFoliage.forEach(foliagePart => {
                                     tree.remove(foliagePart);
                                 });
-                                // Добавляем пенек
                                 const stump = createStump();
                                 tree.add(stump);
-                                // Чтобы избежать повторного взаимодействия с пеньком как с деревом
-                                tree.userData.isCollectible = false; 
+                                tree.userData.isCollectible = false; // Больше не собираемое
                             }
                             pickedUp = true;
-                            break; // Подбираем только одно бревно за раз
+                            break; 
                         }
                     } else if (tree.userData.isCollectible && tree.userData.logsRemaining === 0) {
                         const distanceToTree = playerPosition.distanceTo(tree.position);
@@ -1544,8 +1748,40 @@
                         }
                     }
                 }
+
+                // Если не подобрал бревно, ищем камень
                 if (!pickedUp) {
-                    console.log('Нет бревен для подбора поблизости или вы слишком далеко. Подойдите к дереву.');
+                    for (let i = 0; i < collectibleStones.length; i++) {
+                        const stone = collectibleStones[i];
+                        if (stone.userData.isCollectible && stone.userData.logsRemaining > 0) { // Используем logsRemaining как счетчик "ударов" для камня
+                            const distanceToStone = playerPosition.distanceTo(stone.position);
+                            console.log('Расстояние до камня (для подбора): ' + distanceToStone.toFixed(2) + '. Камни остались: ' + stone.userData.logsRemaining);
+                            if (distanceToStone < interactDistance) {
+                                currentHeldResource = createCollectibleStone();
+                                player.userData.hand.add(currentHeldResource);
+                                playerHasResource = true;
+                                currentResourceType = 'stone';
+                                stone.userData.logsRemaining--;
+
+                                if (stone.userData.logsRemaining === 0) {
+                                    console.log('Камень исчез!');
+                                    scene.remove(stone); // Камень пропадает
+                                    stone.userData.isCollectible = false; // Больше не собираемый
+                                }
+                                pickedUp = true;
+                                break;
+                            }
+                        } else if (stone.userData.isCollectible && stone.userData.logsRemaining === 0) {
+                             const distanceToStone = playerPosition.distanceTo(stone.position);
+                             if (distanceToStone < interactDistance) {
+                                console.log('Этот камень уже исчерпан и исчез.');
+                            }
+                        }
+                    }
+                }
+
+                if (!pickedUp) {
+                    console.log('Нет ресурсов для подбора поблизости или вы слишком далеко. Подойдите к дереву или камню.');
                 }
             }
         }
@@ -1828,13 +2064,13 @@
             createPlayer();
             createGround();
             createTrees();  // Теперь эта функция создает все лиственные и еловые деревья как собираемые
+            createRocks();  // Теперь эта функция создает все камни как собираемые
             createLake();   
             createSmokeParticles();
             createLakeVegetation(); 
             createPierAndBoat(); 
             createFence(); 
             createRabbits(); 
-            createRocks(); // Добавляем камни
             createClouds(); // Добавляем облака
             createMailbox(); // Добавляем почтовый ящик
             createPath(); // Добавляем дорожку
@@ -1843,9 +2079,14 @@
             createBird(); // Добавляем птицу
             createFireflies(); // Добавляем светлячков
 
-            // Создаем сарайчик и поленницу
+            // Создаем сарайчик (лесопилку)
             const barn = createBarn();
+            // Создаем поленницу у сарайчика
             createFirewoodPile(barn);
+
+            // Создаем каменоломню и кучу камней
+            const quarry = createQuarry();
+            createStoneDropOffPile(quarry);
             
             // Настраиваем освещение и элементы управления
             setupLighting(); 
