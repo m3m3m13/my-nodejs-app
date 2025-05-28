@@ -733,8 +733,9 @@
                 new THREE.Vector2(-13, 5),
                 new THREE.Vector2(-8, 12)
             ];
-            // Масштабируем точки, чтобы вернуть к оригинальному размеру
-            const scaledShapePoints = shapePoints.map(p => new THREE.Vector2(p.x, p.y)); 
+            // Масштабируем точки, чтобы соответствовать lakeRadius
+            const scaleFactor = lakeRadius / 15; // 15 - это максимальный радиус исходной формы
+            const scaledShapePoints = shapePoints.map(p => new THREE.Vector2(p.x * scaleFactor, p.y * scaleFactor)); 
 
             const lakeShape = new THREE.Shape(scaledShapePoints);
             const lakeGeometry = new THREE.ShapeGeometry(lakeShape); 
@@ -758,7 +759,7 @@
             const fishGeometry = new THREE.BoxGeometry(0.5, 0.2, 0.2); 
             const fishMaterial = new THREE.MeshStandardMaterial({ color: 0xFF8C00 }); 
 
-            const fishBoundaryRadius = lakeRadius * 1.2; // Граница рыбы относительно радиуса озера
+            const fishBoundaryRadius = lakeRadius * 0.8; // Граница рыбы внутри озера
 
             for (let i = 0; i < numFish; i++) {
                 const f = new THREE.Mesh(fishGeometry, fishMaterial);
@@ -2451,6 +2452,43 @@
             }
         }
 
+        /**
+         * Создает навес.
+         * @param {THREE.Vector3} position - Позиция навеса.
+         * @param {number} rotationY - Вращение по оси Y.
+         */
+        function createShelter(position, rotationY) {
+            const shelterGroup = new THREE.Group();
+            const woodMaterial = new THREE.MeshStandardMaterial({ color: 0xA0522D, roughness: 0.7 }); // Sienna
+            const roofMaterial = new THREE.MeshStandardMaterial({ color: 0x696969, roughness: 0.6 }); // Темно-серый
+
+            // Основная структура (столбы)
+            const postGeometry = new THREE.CylinderGeometry(0.15, 0.15, 3.0, 8);
+            const post1 = new THREE.Mesh(postGeometry, woodMaterial);
+            post1.position.set(-2, 1.5, -1.5);
+            shelterGroup.add(post1);
+            const post2 = new THREE.Mesh(postGeometry, woodMaterial);
+            post2.position.set(2, 1.5, -1.5);
+            shelterGroup.add(post2);
+            const post3 = new THREE.Mesh(postGeometry, woodMaterial);
+            post3.position.set(-2, 1.5, 1.5);
+            shelterGroup.add(post3);
+            const post4 = new THREE.Mesh(postGeometry, woodMaterial);
+            post4.position.set(2, 1.5, 1.5);
+            shelterGroup.add(post4);
+
+            // Крыша (плоская)
+            const roofGeometry = new THREE.BoxGeometry(5, 0.2, 4);
+            const roof = new THREE.Mesh(roofGeometry, roofMaterial);
+            roof.position.y = 3.0 + 0.1; // Над столбами
+            shelterGroup.add(roof);
+
+            shelterGroup.position.copy(position);
+            shelterGroup.rotation.y = rotationY;
+            scene.add(shelterGroup);
+            return shelterGroup;
+        }
+
 
         /**
          * Обрабатывает изменение размера окна, чтобы сохранить правильное соотношение сторон рендерера и камеры.
@@ -2780,11 +2818,16 @@
             const barn = createBarn();
             // Создаем поленницу у сарайчика (лесопилки)
             createFirewoodPile(barn);
+            // Создаем навес над поленницей
+            createShelter(new THREE.Vector3(barn.position.x + 3.5, 0, barn.position.z + 0.5), Math.PI / 6);
+
 
             // Создаем каменоломню и кучу камней
             const quarry = createQuarry();
             createStoneDropOffPile(quarry);
-            
+            // Создаем навес над кучей камней
+            createShelter(new THREE.Vector3(quarry.position.x - 3.5, 0, quarry.position.z - 0.5), -Math.PI / 4);
+
             // Добавляем шезлонг и зонтик возле озера
             // Позиция шезлонга и зонтика теперь за камышами
             createSunLounger(lakeCenterX + lakeRadius + lakeReedsOffset + sunLoungerOffset, 0, lakeCenterZ + 5, Math.PI / 4); 
