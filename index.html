@@ -257,7 +257,9 @@
             windowLightIntensity: 2.0 // Окна включены ночью
         };
 
-        const textureLoader = new THREE.TextureLoader();
+        let textureLoader;
+        // Глобальные переменные для текстур
+        let grassTexture, grassNormalMap, woodDiffuseTexture, woodBumpTexture;
 
         // --- Вспомогательные функции (определены до init для правильной области видимости) ---
 
@@ -407,7 +409,16 @@
             // Деревянный настил вокруг дома
             const deckGeometry = new THREE.BoxGeometry(5, 0.1, 5); // Больше, чем дом
             // Добавлены polygonOffset для предотвращения Z-файтинга
-            const deckMaterial = new THREE.MeshStandardMaterial({ color: 0xA0522D, roughness: 0.6, metalness: 0.0, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: 1 });
+            const deckMaterial = new THREE.MeshStandardMaterial({
+                map: woodDiffuseTexture,
+                bumpMap: woodBumpTexture,
+                color: 0xA0522D, // Keep the base color for tinting
+                roughness: 0.6,
+                metalness: 0.0,
+                polygonOffset: true,
+                polygonOffsetFactor: -1,
+                polygonOffsetUnits: 1
+            });
             const deck = new THREE.Mesh(deckGeometry, deckMaterial);
             deck.position.y = 0.01; // Чуть выше уровня земли для предотвращения Z-файтинга
             deck.castShadow = true;
@@ -455,7 +466,6 @@
             // Руки
             const armGeometry = new THREE.CylinderGeometry(0.08, 0.08, 0.8, 8); // Увеличено количество сегментов
             const armMaterial = new THREE.MeshStandardMaterial({ color: 0xFFDBB3, roughness: 0.6 });
-
             const leftArm = new THREE.Mesh(armGeometry, armMaterial);
             leftArm.position.set(-0.45, 0.8, 0); 
             leftArm.castShadow = true;
@@ -496,7 +506,12 @@
          */
         function createGround() {
             const groundGeometry = new THREE.PlaneGeometry(worldSize, worldSize); 
-            const groundMaterial = new THREE.MeshStandardMaterial({ color: 0x90EE90, roughness: 0.9, metalness: 0.0 });
+            const groundMaterial = new THREE.MeshStandardMaterial({
+                map: grassTexture,
+                normalMap: grassNormalMap,
+                roughness: 0.9,
+                metalness: 0.0
+            });
             const ground = new THREE.Mesh(groundGeometry, groundMaterial);
             ground.rotation.x = -Math.PI / 2;
             ground.receiveShadow = true;
@@ -509,7 +524,12 @@
          */
         function createStump() {
             const stumpGeometry = new THREE.CylinderGeometry(0.3, 0.4, 0.5, 8); // Шире и короче ствола
-            const stumpMaterial = new THREE.MeshStandardMaterial({ color: 0x5C4033, roughness: 0.8 }); // Темно-коричневый
+            const stumpMaterial = new THREE.MeshStandardMaterial({
+                map: woodDiffuseTexture,
+                bumpMap: woodBumpTexture,
+                color: 0x5C4033, // Keep the base color for tinting
+                roughness: 0.8
+            }); // Темно-коричневый
             const stump = new THREE.Mesh(stumpGeometry, stumpMaterial);
             stump.position.y = 0.25; // Половина высоты пенька
             stump.castShadow = true;
@@ -550,7 +570,12 @@
 
 
             // Лиственные деревья
-            const deciduousTrunkMaterial = new THREE.MeshStandardMaterial({ color: 0x8B4513, roughness: 0.8 });
+            const deciduousTrunkMaterial = new THREE.MeshStandardMaterial({
+                map: woodDiffuseTexture,
+                bumpMap: woodBumpTexture,
+                color: 0x8B4513, // Keep the base color for tinting
+                roughness: 0.8
+            });
             const deciduousFoliageMaterial = new THREE.MeshStandardMaterial({ color: 0x228B22, roughness: 0.7 });
             const appleMaterial = new THREE.MeshStandardMaterial({ color: 0xFF0000, roughness: 0.5 }); // Красные яблоки
 
@@ -637,7 +662,12 @@
             }
 
             // Ели (хвойные)
-            const firTrunkMaterial = new THREE.MeshStandardMaterial({ color: 0x5C4033, roughness: 0.8 }); 
+            const firTrunkMaterial = new THREE.MeshStandardMaterial({
+                map: woodDiffuseTexture,
+                bumpMap: woodBumpTexture,
+                color: 0x5C4033, // Keep the base color for tinting
+                roughness: 0.8
+            }); 
             const firFoliageMaterial = new THREE.MeshStandardMaterial({ color: 0x006400, roughness: 0.7 }); 
 
             for (let i = 0; i < numFirTrees; i++) {
@@ -840,7 +870,12 @@
          */
         function createPierAndBoat() {
             // Центр озера уже определен как lakeCenterX, lakeCenterZ
-            const pierMaterial = new THREE.MeshStandardMaterial({ color: 0x8B4513, roughness: 0.6 }); 
+            const pierMaterial = new THREE.MeshStandardMaterial({
+                map: woodDiffuseTexture,
+                bumpMap: woodBumpTexture,
+                color: 0x8B4513, // Keep the base color for tinting
+                roughness: 0.6
+            }); 
             
             // Основная часть пирса
             const pierBaseGeometry = new THREE.BoxGeometry(1.5, 0.2, 5); 
@@ -869,7 +904,12 @@
             // Создаем лодку
             const boat = new THREE.Group();
             const boatMaterial = new THREE.MeshStandardMaterial({ color: 0x6A5ACD, roughness: 0.4, metalness: 0.1 }); 
-            const boatInsideMaterial = new THREE.MeshStandardMaterial({ color: 0x8B4513, roughness: 0.6 }); 
+            const boatInsideMaterial = new THREE.MeshStandardMaterial({
+                map: woodDiffuseTexture,
+                bumpMap: woodBumpTexture,
+                color: 0x8B4513, // Keep the base color for tinting
+                roughness: 0.6
+            }); 
 
             // Корпус лодки (основная часть)
             const boatHullGeometry = new THREE.BoxGeometry(0.8, 0.3, 2.5);
@@ -907,7 +947,12 @@
             const postRadius = 0.08;
             const numPosts = 32; // Увеличено количество столбов для более гладкого круга
 
-            const fenceMaterial = new THREE.MeshStandardMaterial({ color: 0x8B4513, roughness: 0.7 }); 
+            const fenceMaterial = new THREE.MeshStandardMaterial({
+                map: woodDiffuseTexture,
+                bumpMap: woodBumpTexture,
+                color: 0x8B4513, // Keep the base color for tinting
+                roughness: 0.7
+            }); 
 
             const posts = [];
             for (let i = 0; i < numPosts; i++) {
@@ -1202,7 +1247,12 @@
          */
         function createMailbox() {
             const mailbox = new THREE.Group();
-            const postMaterial = new THREE.MeshStandardMaterial({ color: 0x8B4513, roughness: 0.7 }); // Коричневый столб
+            const postMaterial = new THREE.MeshStandardMaterial({
+                map: woodDiffuseTexture,
+                bumpMap: woodBumpTexture,
+                color: 0x8B4513, // Keep the base color for tinting
+                roughness: 0.7
+            }); // Коричневый столб
             const boxMaterial = new THREE.MeshStandardMaterial({ color: 0xFF0000, roughness: 0.6 }); // Красный ящик
 
             // Столб
@@ -1252,11 +1302,16 @@
          */
         function createBench() {
             const bench = new THREE.Group();
-            const woodMaterial = new THREE.MeshStandardMaterial({ color: 0x8B4513, roughness: 0.7 }); // Деревянный материал
+            const woodMaterialBench = new THREE.MeshStandardMaterial({
+                map: woodDiffuseTexture,
+                bumpMap: woodBumpTexture,
+                color: 0x8B4513, // Keep the base color for tinting
+                roughness: 0.7
+            }); // Деревянный материал
 
             // Сиденье
             const seatGeometry = new THREE.BoxGeometry(1.5, 0.1, 0.4);
-            const seat = new THREE.Mesh(seatGeometry, woodMaterial);
+            const seat = new THREE.Mesh(seatGeometry, woodMaterialBench);
             seat.position.y = 0.4;
             seat.castShadow = true;
             seat.receiveShadow = true;
@@ -1264,22 +1319,22 @@
 
             // Ножки
             const legGeometry = new THREE.BoxGeometry(0.1, 0.4, 0.1);
-            const leg1 = new THREE.Mesh(legGeometry, woodMaterial);
+            const leg1 = new THREE.Mesh(legGeometry, woodMaterialBench);
             leg1.position.set(-0.6, 0.2, 0.15);
             leg1.castShadow = true;
             leg1.receiveShadow = true;
             bench.add(leg1);
-            const leg2 = new THREE.Mesh(legGeometry, woodMaterial);
+            const leg2 = new THREE.Mesh(legGeometry, woodMaterialBench);
             leg2.position.set(0.6, 0.2, 0.15);
             leg2.castShadow = true;
             leg2.receiveShadow = true;
             bench.add(leg2);
-            const leg3 = new THREE.Mesh(legGeometry, woodMaterial);
+            const leg3 = new THREE.Mesh(legGeometry, woodMaterialBench);
             leg3.position.set(-0.6, 0.2, -0.15);
             leg3.castShadow = true;
             leg3.receiveShadow = true;
             bench.add(leg3);
-            const leg4 = new THREE.Mesh(legGeometry, woodMaterial);
+            const leg4 = new THREE.Mesh(legGeometry, woodMaterialBench);
             leg4.position.set(0.6, 0.2, -0.15);
             leg4.castShadow = true;
             leg4.receiveShadow = true;
@@ -1402,7 +1457,15 @@
         function createBarn() {
             const barn = new THREE.Group();
             // Светлее, чем бревна (0x654321)
-            const barnWoodMaterial = new THREE.MeshStandardMaterial({ color: 0xD2B48C, roughness: 0.7, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: 1 }); // Tan
+            const barnWoodMaterial = new THREE.MeshStandardMaterial({
+                map: woodDiffuseTexture,
+                bumpMap: woodBumpTexture,
+                color: 0xD2B48C, // Keep the base color for tinting
+                roughness: 0.7,
+                polygonOffset: true,
+                polygonOffsetFactor: -1,
+                polygonOffsetUnits: 1
+            }); // Tan
             const barnRoofMaterial = new THREE.MeshStandardMaterial({ color: 0xA0522D, roughness: 0.6 }); // Sienna
 
             // Стены сарайчика
@@ -1483,8 +1546,13 @@
          */
         function createCollectibleLog() {
             const logGeometry = new THREE.CylinderGeometry(0.15, 0.15, 1.0, 8);
-            const logMaterial = new THREE.MeshStandardMaterial({ color: 0x654321, roughness: 0.8 });
-            const log = new THREE.Mesh(logGeometry, logMaterial);
+            const logMaterialCollectible = new THREE.MeshStandardMaterial({
+                map: woodDiffuseTexture,
+                bumpMap: woodBumpTexture,
+                color: 0x654321, // Keep the base color for tinting
+                roughness: 0.8
+            });
+            const log = new THREE.Mesh(logGeometry, logMaterialCollectible);
             log.rotation.z = Math.PI / 2; // Горизонтально
             log.castShadow = true;
             log.receiveShadow = true;
@@ -2010,9 +2078,19 @@
             const forestMaxZ = -60;
             const treeCount = 100; 
 
-            const deciduousTrunkMaterial = new THREE.MeshStandardMaterial({ color: 0x8B4513, roughness: 0.8 });
+            const deciduousTrunkMaterial = new THREE.MeshStandardMaterial({
+                map: woodDiffuseTexture,
+                bumpMap: woodBumpTexture,
+                color: 0x8B4513, // Keep the base color for tinting
+                roughness: 0.8
+            });
             const deciduousFoliageMaterial = new THREE.MeshStandardMaterial({ color: 0x228B22, roughness: 0.7 });
-            const firTrunkMaterial = new THREE.MeshStandardMaterial({ color: 0x5C4033, roughness: 0.8 }); 
+            const firTrunkMaterial = new THREE.MeshStandardMaterial({
+                map: woodDiffuseTexture,
+                bumpMap: woodBumpTexture,
+                color: 0x5C4033, // Keep the base color for tinting
+                roughness: 0.8
+            }); 
             const firFoliageMaterial = new THREE.MeshStandardMaterial({ color: 0x006400, roughness: 0.7 }); 
 
             for (let i = 0; i < treeCount; i++) {
@@ -2290,7 +2368,12 @@
          */
         function createSunLounger(x, y, z, rotationY) {
             const loungerGroup = new THREE.Group();
-            const woodMaterial = new THREE.MeshStandardMaterial({ color: 0x8B4513, roughness: 0.7 }); // Дерево
+            const woodMaterialLounger = new THREE.MeshStandardMaterial({
+                map: woodDiffuseTexture,
+                bumpMap: woodBumpTexture,
+                color: 0x8B4513, // Keep the base color for tinting
+                roughness: 0.7
+            }); // Дерево
             const fabricMaterial = new THREE.MeshStandardMaterial({ color: 0xADD8E6, roughness: 0.5 }); // Светло-голубая ткань
 
             // Сиденье
@@ -2312,22 +2395,22 @@
 
             // Ножки
             const legGeometry = new THREE.BoxGeometry(0.05, 0.2, 0.05);
-            const leg1 = new THREE.Mesh(legGeometry, woodMaterial);
+            const leg1 = new THREE.Mesh(legGeometry, woodMaterialLounger);
             leg1.position.set(0.6, 0.1, 0.25);
             leg1.castShadow = true;
             leg1.receiveShadow = true;
             loungerGroup.add(leg1);
-            const leg2 = new THREE.Mesh(legGeometry, woodMaterial);
+            const leg2 = new THREE.Mesh(legGeometry, woodMaterialLounger);
             leg2.position.set(0.6, 0.1, -0.25);
             leg2.castShadow = true;
             leg2.receiveShadow = true;
             loungerGroup.add(leg2);
-            const leg3 = new THREE.Mesh(legGeometry, woodMaterial);
+            const leg3 = new THREE.Mesh(legGeometry, woodMaterialLounger);
             leg3.position.set(-0.6, 0.1, 0.25);
             leg3.castShadow = true;
             leg3.receiveShadow = true;
             loungerGroup.add(leg3);
-            const leg4 = new THREE.Mesh(legGeometry, woodMaterial);
+            const leg4 = new THREE.Mesh(legGeometry, woodMaterialLounger);
             leg4.position.set(-0.6, 0.1, -0.25);
             leg4.castShadow = true;
             leg4.receiveShadow = true;
@@ -2347,12 +2430,17 @@
          */
         function createUmbrella(x, y, z, rotationY) {
             const umbrellaGroup = new THREE.Group();
-            const poleMaterial = new THREE.MeshStandardMaterial({ color: 0x8B4513, roughness: 0.7 }); // Дерево
+            const poleMaterialUmbrella = new THREE.MeshStandardMaterial({
+                map: woodDiffuseTexture,
+                bumpMap: woodBumpTexture,
+                color: 0x8B4513, // Keep the base color for tinting
+                roughness: 0.7
+            }); // Дерево
             const canopyMaterial = new THREE.MeshStandardMaterial({ color: 0xFFD700, roughness: 0.5 }); // Золотой/желтый купол
 
             // Ствол
             const poleGeometry = new THREE.CylinderGeometry(0.05, 0.05, 2.0, 8);
-            const pole = new THREE.Mesh(poleGeometry, poleMaterial);
+            const pole = new THREE.Mesh(poleGeometry, poleMaterialUmbrella);
             pole.position.y = 1.0;
             pole.castShadow = true;
             pole.receiveShadow = true;
@@ -2463,7 +2551,12 @@
          */
         function createFallenLogs() {
             const numFallenLogs = 20;
-            const logMaterial = new THREE.MeshStandardMaterial({ color: 0x5C4033, roughness: 0.8 }); // Темно-коричневый
+            const logMaterialFallen = new THREE.MeshStandardMaterial({
+                map: woodDiffuseTexture,
+                bumpMap: woodBumpTexture,
+                color: 0x5C4033, // Keep the base color for tinting
+                roughness: 0.8
+            }); // Темно-коричневый
 
             for (let i = 0; i < numFallenLogs; i++) {
                 let logX, logZ;
@@ -2486,7 +2579,7 @@
                 const length = 2 + Math.random() * 2; // Длина от 2 до 4
                 const radius = 0.2 + Math.random() * 0.1; // Радиус от 0.2 до 0.3
                 const fallenLogGeometry = new THREE.CylinderGeometry(radius, radius, length, 8);
-                const fallenLog = new THREE.Mesh(fallenLogGeometry, logMaterial);
+                const fallenLog = new THREE.Mesh(fallenLogGeometry, logMaterialFallen);
                 fallenLog.position.set(logX, radius, logZ);
                 fallenLog.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI); // Случайное вращение
                 fallenLog.castShadow = true;
@@ -2502,27 +2595,32 @@
          */
         function createShelter(position, rotationY) {
             const shelterGroup = new THREE.Group();
-            const woodMaterial = new THREE.MeshStandardMaterial({ color: 0xA0522D, roughness: 0.7 }); // Sienna
+            const woodMaterialShelter = new THREE.MeshStandardMaterial({
+                map: woodDiffuseTexture,
+                bumpMap: woodBumpTexture,
+                color: 0xA0522D, // Keep the base color for tinting
+                roughness: 0.7
+            }); // Sienna
             const roofMaterial = new THREE.MeshStandardMaterial({ color: 0x696969, roughness: 0.6 }); // Темно-серый
 
             // Основная структура (столбы)
             const postGeometry = new THREE.CylinderGeometry(0.15, 0.15, 3.0, 8);
-            const post1 = new THREE.Mesh(postGeometry, woodMaterial);
+            const post1 = new THREE.Mesh(postGeometry, woodMaterialShelter);
             post1.position.set(-2, 1.5, -1.5);
             post1.castShadow = true;
             post1.receiveShadow = true;
             shelterGroup.add(post1);
-            const post2 = new THREE.Mesh(postGeometry, woodMaterial);
+            const post2 = new THREE.Mesh(postGeometry, woodMaterialShelter);
             post2.position.set(2, 1.5, -1.5);
             post2.castShadow = true;
             post2.receiveShadow = true;
             shelterGroup.add(post2);
-            const post3 = new THREE.Mesh(postGeometry, woodMaterial);
+            const post3 = new THREE.Mesh(postGeometry, woodMaterialShelter);
             post3.position.set(-2, 1.5, 1.5);
             post3.castShadow = true;
             post3.receiveShadow = true;
             shelterGroup.add(post3);
-            const post4 = new THREE.Mesh(postGeometry, woodMaterial);
+            const post4 = new THREE.Mesh(postGeometry, woodMaterialShelter);
             post4.position.set(2, 1.5, 1.5);
             post4.castShadow = true;
             post4.receiveShadow = true;
@@ -2767,7 +2865,7 @@
          */
         function updatePlayer() {
             let isMoving = false;
-            const speed = keys['ShiftLeft'] || keys['ShiftRight'] ? 0.15 : 0.08; 
+            const speed = keys['ShiftLeft'] || keys['ShiftRight'] ? 0.3 : 0.08; // Doubled running speed
             const moveDirection = new THREE.Vector3(); 
             const cameraDirection = new THREE.Vector3();
             camera.getWorldDirection(cameraDirection); 
@@ -2841,6 +2939,27 @@
             renderer.shadowMap.enabled = true; 
             renderer.shadowMap.type = THREE.PCFSoftShadowMap; 
             document.getElementById('container').appendChild(renderer.domElement);
+
+            // Инициализация загрузчика текстур и загрузка текстур
+            textureLoader = new THREE.TextureLoader();
+
+            grassTexture = textureLoader.load('https://threejs.org/examples/textures/terrain/grasslight-big.jpg', function(texture) {
+                texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+                texture.repeat.set(50, 50);
+            });
+            grassNormalMap = textureLoader.load('https://threejs.org/examples/textures/terrain/grasslight-big-normal.jpg', function(texture) {
+                texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+                texture.repeat.set(50, 50);
+            });
+
+            woodDiffuseTexture = textureLoader.load('https://threejs.org/examples/textures/hardwood2_diffuse.jpg', function(texture) {
+                texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+                texture.repeat.set(2, 2);
+            });
+            woodBumpTexture = textureLoader.load('https://threejs.org/examples/textures/hardwood2_bump.jpg', function(texture) {
+                texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+                texture.repeat.set(2, 2);
+            });
 
             // Создаем все элементы сцены
             createHouse();
