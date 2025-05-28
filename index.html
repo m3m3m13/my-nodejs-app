@@ -1335,12 +1335,13 @@
         }
 
         /**
-         * Создает сарайчик (небольшой домик) в лесу.
+         * Создает сарайчик (лесопилку).
          */
         function createBarn() {
             const barn = new THREE.Group();
-            const barnWoodMaterial = new THREE.MeshStandardMaterial({ color: 0x8B4513, roughness: 0.7 }); // Коричневое дерево
-            const barnRoofMaterial = new THREE.MeshStandardMaterial({ color: 0xA0522D, roughness: 0.6 }); // Темно-коричневая крыша
+            // Светлее, чем бревна (0x654321)
+            const barnWoodMaterial = new THREE.MeshStandardMaterial({ color: 0xD2B48C, roughness: 0.7, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: 1 }); // Tan
+            const barnRoofMaterial = new THREE.MeshStandardMaterial({ color: 0xA0522D, roughness: 0.6 }); // Sienna
 
             // Стены сарайчика
             const barnBodyGeometry = new THREE.BoxGeometry(5, 3, 4);
@@ -1351,11 +1352,11 @@
             barn.add(barnBody);
 
             // Крыша сарайчика (двускатная)
-            const barnRoofGeometry = new THREE.ConeGeometry(3.5, 2, 4, 8); // Использовать ConeGeometry с 4 сегментами для пирамидальной крыши
+            const barnRoofGeometry = new THREE.ConeGeometry(3.5, 2, 4, 8); 
             const barnRoof = new THREE.Mesh(barnRoofGeometry, barnRoofMaterial);
-            barnRoof.position.y = 3 + 1; // Высота стен + половина высоты крыши
-            barnRoof.rotation.y = Math.PI / 4; // Выравниваем по сторонам
-            barnRoof.scale.set(1.1, 1, 1.1); // Немного шире, чем тело сарайчика
+            barnRoof.position.y = 3 + 1; 
+            barnRoof.rotation.y = Math.PI / 4; 
+            barnRoof.scale.set(1.1, 1, 1.1); 
             barnRoof.castShadow = true;
             barn.add(barnRoof);
 
@@ -1363,15 +1364,15 @@
             const barnDoorGeometry = new THREE.BoxGeometry(1.0, 2.0, 0.1);
             const barnDoorMaterial = new THREE.MeshStandardMaterial({ color: 0x5C4033, roughness: 0.6 });
             const barnDoor = new THREE.Mesh(barnDoorGeometry, barnDoorMaterial);
-            barnDoor.position.set(0, 1.0, 2.05); // Передняя сторона сарайчика
+            barnDoor.position.set(0, 1.0, 2.05); 
             barnDoor.castShadow = true;
             barn.add(barnDoor);
 
             // Размещаем сарайчик в лесу
-            barn.position.set(-40, 0, 40); // Примерные координаты в лесу
+            barn.position.set(-40, 0, 40); 
             scene.add(barn);
 
-            return barn; // Возвращаем сарайчик
+            return barn; 
         }
 
         /**
@@ -1454,8 +1455,10 @@
          */
         function createQuarry() {
             quarryHouse = new THREE.Group();
-            const quarryStoneMaterial = new THREE.MeshStandardMaterial({ color: 0x708090, roughness: 0.8 }); // Серый камень
-            const quarryRoofMaterial = new THREE.MeshStandardMaterial({ color: 0x4A4A4A, roughness: 0.7 }); // Темно-серый
+            // Светлее, чем камни (0x808080)
+            const quarryStoneMaterial = new THREE.MeshStandardMaterial({ color: 0xD3D3D3, roughness: 0.8, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: 1 }); // LightGray
+            const quarryRoofMaterial = new THREE.MeshStandardMaterial({ color: 0x4A4A4A, roughness: 0.7 }); // DarkGray
+            const buttressMaterial = new THREE.MeshStandardMaterial({ color: 0xA9A9A9, roughness: 0.8, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: 1 }); // DarkGray для контрфорсов
 
             // Тело каменоломни
             const quarryBodyGeometry = new THREE.BoxGeometry(6, 4, 5);
@@ -1480,6 +1483,24 @@
             quarryDoor.position.set(0, 1.25, 2.55);
             quarryDoor.castShadow = true;
             quarryHouse.add(quarryDoor);
+
+            // Добавляем контрфорсы (опорные элементы) для большей массивности
+            const buttressGeometry = new THREE.BoxGeometry(1, 4, 1);
+            
+
+            const buttress1 = new THREE.Mesh(buttressGeometry, buttressMaterial);
+            buttress1.position.set(3.0, 2, 2.0); // Передний правый
+            quarryHouse.add(buttress1);
+            const buttress2 = new THREE.Mesh(buttressGeometry, buttressMaterial);
+            buttress2.position.set(-3.0, 2, 2.0); // Передний левый
+            quarryHouse.add(buttress2);
+            const buttress3 = new THREE.Mesh(buttressGeometry, buttressMaterial);
+            buttress3.position.set(3.0, 2, -2.0); // Задний правый
+            quarryHouse.add(buttress3);
+            const buttress4 = new THREE.Mesh(buttressGeometry, buttressMaterial);
+            buttress4.position.set(-3.0, 2, -2.0); // Задний левый
+            quarryHouse.add(buttress4);
+
 
             // Размещаем каменоломню
             quarryHouse.position.set(40, 0, -40); // В другой стороне от домиков
@@ -2081,7 +2102,7 @@
 
             // Создаем сарайчик (лесопилку)
             const barn = createBarn();
-            // Создаем поленницу у сарайчика
+            // Создаем поленницу у сарайчика (лесопилки)
             createFirewoodPile(barn);
 
             // Создаем каменоломню и кучу камней
