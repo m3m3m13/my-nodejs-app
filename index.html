@@ -181,6 +181,7 @@
         const interactDistance = 3; // Расстояние для взаимодействия (подбора/выгрузки)
         let collectibleTrees = []; // Массив для всех собираемых деревьев
         let collectibleStones = []; // Массив для всех собираемых камней (теперь генерируются в createRocks)
+        let placedBuildingBlocks = []; // Новый массив для блоков, размещенных игроком для строительства
 
         let transitionProgress = 1; 
         let transitionSpeed = 0.02; 
@@ -1576,6 +1577,71 @@
             stoneDropOffPileGroup.add(stoneMesh);
         }
 
+        /**
+         * Размещает ресурс на земле для строительства.
+         * @param {THREE.Mesh} resourceMesh - Меш ресурса.
+         * @param {THREE.Vector3} playerPos - Позиция игрока.
+         * @param {string} resourceType - Тип ресурса ('log' или 'stone').
+         */
+        function placeResourceOnGround(resourceMesh, playerPos, resourceType) {
+            // Определяем позицию размещения немного впереди игрока
+            const placementOffset = 1.5; // Расстояние перед игроком
+            const playerForward = new THREE.Vector3();
+            player.getWorldDirection(playerForward);
+            playerForward.y = 0; // Сохраняем горизонтальное направление
+            playerForward.normalize();
+
+            const placementX = playerPos.x + playerForward.x * placementOffset;
+            const placementZ = playerPos.z + playerForward.z * placementOffset;
+
+            let highestY = 0; // Уровень земли
+            const placementTolerance = 0.8; // Насколько близко объекты должны быть, чтобы считаться для стека
+
+            // Находим самую высокую точку в месте размещения для стека
+            placedBuildingBlocks.forEach(block => {
+                const blockPos = block.position;
+                const distance = Math.sqrt(
+                    Math.pow(placementX - blockPos.x, 2) +
+                    Math.pow(placementZ - blockPos.z, 2)
+                );
+
+                if (distance < placementTolerance) {
+                    let blockHeight = 0;
+                    if (block.geometry.type === 'CylinderGeometry') {
+                        blockHeight = block.geometry.parameters.height;
+                    } else if (block.geometry.type === 'SphereGeometry') {
+                        blockHeight = block.geometry.parameters.radius * 2;
+                    } else if (block.geometry.type === 'BoxGeometry') {
+                        blockHeight = block.geometry.parameters.height;
+                    }
+                    // Вычисляем верхнюю поверхность блока
+                    const blockTopY = blockPos.y + blockHeight / 2;
+                    if (blockTopY > highestY) {
+                        highestY = blockTopY;
+                    }
+                }
+            });
+
+            let resourceHeight = 0;
+            if (resourceType === 'log') {
+                resourceHeight = 1.0; // Высота бревна (цилиндр)
+            } else if (resourceType === 'stone') {
+                resourceHeight = resourceMesh.geometry.parameters.radius * 2; // Диаметр камня (сфера)
+            }
+
+            resourceMesh.position.set(placementX, highestY + resourceHeight / 2, placementZ);
+            // Ориентируем бревна горизонтально для строительства, камни могут быть случайными
+            if (resourceType === 'log') {
+                resourceMesh.rotation.set(0, player.rotation.y, Math.PI / 2); // Лежит плашмя, ориентировано по игроку
+            } else {
+                resourceMesh.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
+            }
+            
+            scene.add(resourceMesh);
+            placedBuildingBlocks.push(resourceMesh);
+            console.log(`Ресурс ${resourceType} размещен на земле для строительства.`);
+        }
+
 
         /**
          * Настраивает освещение сцены (окружающее, направленное, полусферное).
@@ -1710,7 +1776,10 @@
                         console.log('Бревно выгружено! Всего собрано: ' + collectedLogsCount);
                         deposited = true;
                     } else {
-                        console.log('Вы слишком далеко от поленницы, чтобы выгрузить бревно. Подойдите ближе.');
+                        // Игрок не рядом с поленницей, размещаем бревно для строительства
+                        player.userData.hand.remove(currentHeldResource);
+                        placeResourceOnGround(currentHeldResource, playerPosition, currentResourceType);
+                        deposited = true; // Считаем размещение как успешное действие
                     }
                 } else if (currentResourceType === 'stone') {
                     // Попытка выгрузить камень у кучи камней каменоломни
@@ -1724,7 +1793,10 @@
                         console.log('Камень выгружен! Всего собрано: ' + collectedStonesCount);
                         deposited = true;
                     } else {
-                        console.log('Вы слишком далеко от кучи камней, чтобы выгрузить камень. Подойдите ближе.');
+                        // Игрок не рядом с кучей камней, размещаем камень для строительства
+                        player.userData.hand.remove(currentHeldResource);
+                        placeResourceOnGround(currentHeldResource, playerPosition, currentResourceType);
+                        deposited = true; // Считаем размещение как успешное действие
                     }
                 }
 
