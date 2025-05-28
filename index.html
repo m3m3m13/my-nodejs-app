@@ -123,11 +123,11 @@
     </div>
 
     <script>
-        // Global variables for the scene
+        // Глобальные переменные для сцены
         let scene, camera, renderer, house, particles = [], player;
         let isMouseDown = false, mouseX = 0, mouseY = 0;
         let cameraAngleX = 0.3, cameraAngleY = 0;
-        let cameraDistance = 40; // Increased initial camera distance for larger world
+        let cameraDistance = 40; // Увеличено начальное расстояние камеры для большего мира
         let isDayTime = true;
         let keys = {};
         let playerPosition = new THREE.Vector3(-10, 0.8, 0); 
@@ -135,51 +135,53 @@
         let walkAnimation = 0;
         let windowLights = []; 
         let fish = []; 
-        let rabbits = []; // Array to hold rabbit objects
-        let clouds = []; // Array to hold cloud objects
+        let rabbits = []; // Массив для объектов кроликов
+        let clouds = []; // Массив для объектов облаков
+        let fireflies = []; // Массив для объектов светлячков
+        let bird; // Объект птицы
 
         let transitionProgress = 1; 
         let transitionSpeed = 0.02; 
         let targetTransitionProgress = 1; 
 
-        // Day and Night settings for lighting and fog
+        // Настройки дня и ночи для освещения и тумана
         const daySettings = {
-            fogColor: 0xA0D0FF, // Light blue fog
-            clearColor: 0xA0D0FF, // Sky blue clear color
-            ambientIntensity: 0.4, // Moderate ambient light
-            directionalColor: 0xffffff, // White sunlight
-            directionalIntensity: 0.8, // Strong sunlight
-            directionalPosition: new THREE.Vector3(10, 15, 10), // Sun position
-            hemisphereSkyColor: 0xC0E0FF, // Light blue sky for hemisphere
-            hemisphereGroundColor: 0xA9D9A9, // Light green ground for hemisphere
-            hemisphereIntensity: 0.6, // Moderate hemisphere light
-            windowLightIntensity: 0.0 // Windows off during day
+            fogColor: 0xA0D0FF, // Светло-голубой туман
+            clearColor: 0xA0D0FF, // Светло-голубой цвет очистки
+            ambientIntensity: 0.4, // Умеренный окружающий свет
+            directionalColor: 0xffffff, // Белый солнечный свет
+            directionalIntensity: 0.8, // Сильный солнечный свет
+            directionalPosition: new THREE.Vector3(10, 15, 10), // Позиция солнца (используется как фиксированная позиция)
+            hemisphereSkyColor: 0xC0E0FF, // Светло-голубое небо для полусферы
+            hemisphereGroundColor: 0xA9D9A9, // Светло-зеленая земля для полусферы
+            hemisphereIntensity: 0.6, // Умеренный свет полусферы
+            windowLightIntensity: 0.0 // Окна выключены днем
         };
 
         const nightSettings = {
-            fogColor: 0x101040, // Dark blue/purple fog
-            clearColor: 0x101040, // Dark blue/purple clear color
-            ambientIntensity: 0.25, // Dim ambient light
-            directionalColor: 0x404080, // Bluish moonlight
-            directionalIntensity: 0.3, // Dim moonlight
-            directionalPosition: new THREE.Vector3(-10, 15, -10), // Moon position
-            hemisphereSkyColor: 0x202050, // Dark blue sky for hemisphere
-            hemisphereGroundColor: 0x101010, // Very dark ground for hemisphere
-            hemisphereIntensity: 0.2, // Very dim hemisphere light
-            windowLightIntensity: 2.0 // Windows on during night
+            fogColor: 0x101040, // Темно-синий/фиолетовый туман
+            clearColor: 0x101040, // Темно-синий/фиолетовый цвет очистки
+            ambientIntensity: 0.25, // Тусклый окружающий свет
+            directionalColor: 0x404080, // Голубоватый лунный свет
+            directionalIntensity: 0.3, // Тусклый лунный свет
+            directionalPosition: new THREE.Vector3(-10, 15, -10), // Позиция луны (больше не используется для динамического движения)
+            hemisphereSkyColor: 0x202050, // Темно-синее небо для полусферы
+            hemisphereGroundColor: 0x101010, // Очень темная земля для полусферы
+            hemisphereIntensity: 0.2, // Очень тусклый свет полусферы
+            windowLightIntensity: 2.0 // Окна включены ночью
         };
 
         const textureLoader = new THREE.TextureLoader();
 
-        // --- Helper Functions (defined before init for proper scope) ---
+        // --- Вспомогательные функции (определены до init для правильной области видимости) ---
 
         /**
-         * Creates the main house model with walls, roof, door, handle, windows, and chimney.
+         * Создает основную модель дома со стенами, крышей, дверью, ручкой, окнами и дымоходом.
          */
         function createHouse() {
             house = new THREE.Group();
 
-            // Load brick texture for walls
+            // Загрузка текстуры кирпича для стен
             const brickTexture = textureLoader.load('https://threejs.org/examples/textures/brick_diffuse.jpg',
                 function (texture) {
                     texture.wrapS = texture.wrapT = THREE.RepeatWrapping; 
@@ -190,12 +192,12 @@
                 undefined,
                 function (err) {
                     console.error('Ошибка загрузки текстуры кирпича:', err);
-                    wallMaterial.color.set(0x8B4513); // Fallback color if texture fails
+                    wallMaterial.color.set(0x8B4513); // Резервный цвет, если текстура не загрузилась
                     wallMaterial.needsUpdate = true;
                 }
             );
 
-            // Walls
+            // Стены
             const wallGeometry = new THREE.BoxGeometry(4, 3, 4); 
             const wallMaterial = new THREE.MeshStandardMaterial({ color: 0xF5DEB3, roughness: 0.8, metalness: 0.1 });
             const walls = new THREE.Mesh(wallGeometry, wallMaterial);
@@ -204,8 +206,8 @@
             walls.receiveShadow = true;
             house.add(walls);
 
-            // Roof
-            const roofGeometry = new THREE.ConeGeometry(3.5, 2, 4, 8); // Increased segments for smoother cone
+            // Крыша
+            const roofGeometry = new THREE.ConeGeometry(3.5, 2, 4, 8); // Увеличено количество сегментов для более гладкого конуса
             const roofMaterial = new THREE.MeshStandardMaterial({ color: 0x8B0000, roughness: 0.7, metalness: 0.0 });
             const roof = new THREE.Mesh(roofGeometry, roofMaterial);
             roof.position.y = 4;
@@ -213,7 +215,7 @@
             roof.castShadow = true;
             house.add(roof);
 
-            // Door
+            // Дверь
             const doorGeometry = new THREE.BoxGeometry(0.8, 1.8, 0.1);
             const doorMaterial = new THREE.MeshStandardMaterial({ color: 0x4A4A4A, roughness: 0.6, metalness: 0.0 });
             const door = new THREE.Mesh(doorGeometry, doorMaterial);
@@ -221,24 +223,41 @@
             door.castShadow = true;
             house.add(door);
 
-            // Door handle
-            const handleGeometry = new THREE.SphereGeometry(0.05, 16, 16); // Increased segments for smoother sphere
+            // Ручка двери
+            const handleGeometry = new THREE.SphereGeometry(0.05, 16, 16); // Увеличено количество сегментов для более гладкой сферы
             const handleMaterial = new THREE.MeshStandardMaterial({ color: 0xFFD700, roughness: 0.3, metalness: 0.8 });
             const handle = new THREE.Mesh(handleGeometry, handleMaterial);
             handle.position.set(-0.3, 0.9, 2.1);
             handle.castShadow = true;
             house.add(handle);
 
-            // Windows
+            // Окна
             const windowGeometry = new THREE.BoxGeometry(0.8, 0.8, 0.1);
-            const windowMaterial = new THREE.MeshStandardMaterial({ color: 0x87CEEB, transparent: true, opacity: 0.7, roughness: 0.2, metalness: 0.1 });
-            
-            // Front window
+            // Добавлены polygonOffset для предотвращения Z-файтинга
+            const windowMaterial = new THREE.MeshStandardMaterial({ color: 0x87CEEB, transparent: true, opacity: 0.7, roughness: 0.2, metalness: 0.1, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: 1 });
+            // Добавлены polygonOffset для предотвращения Z-файтинга
+            const windowFrameMaterial = new THREE.MeshStandardMaterial({ color: 0x654321, roughness: 0.5, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: 1 }); 
+
+            // Переднее окно
             const frontWindow = new THREE.Mesh(windowGeometry, windowMaterial);
             frontWindow.position.set(1.2, 1.8, 2.05); 
             frontWindow.castShadow = true;
             house.add(frontWindow);
-            // Point light for the front window
+            // Рамы для переднего окна
+            const frontWindowFrameH1 = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.1, 0.1), windowFrameMaterial);
+            frontWindowFrameH1.position.set(1.2, 1.8 + 0.4, 2.05);
+            house.add(frontWindowFrameH1);
+            const frontWindowFrameH2 = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.1, 0.1), windowFrameMaterial);
+            frontWindowFrameH2.position.set(1.2, 1.8 - 0.4, 2.05);
+            house.add(frontWindowFrameH2);
+            const frontWindowFrameV1 = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.9, 0.1), windowFrameMaterial);
+            frontWindowFrameV1.position.set(1.2 + 0.4, 1.8, 2.05);
+            house.add(frontWindowFrameV1);
+            const frontWindowFrameV2 = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.9, 0.1), windowFrameMaterial);
+            frontWindowFrameV2.position.set(1.2 - 0.4, 1.8, 2.05);
+            house.add(frontWindowFrameV2);
+
+            // Точечный свет для переднего окна
             windowLights = []; 
             const frontWindowLight = new THREE.PointLight(0xFFE0B2, daySettings.windowLightIntensity, 5); 
             frontWindowLight.position.set(1.2, 1.8, 1.95); 
@@ -246,20 +265,38 @@
             house.add(frontWindowLight);
             windowLights.push(frontWindowLight); 
 
-            // Side window
+            // Боковое окно
             const sideWindow = new THREE.Mesh(windowGeometry, windowMaterial);
             sideWindow.position.set(2.05, 1.8, 0); 
             sideWindow.rotation.y = Math.PI / 2; 
             sideWindow.castShadow = true;
             house.add(sideWindow);
-            // Point light for the side window
+            // Рамы для бокового окна
+            const sideWindowFrameH1 = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.1, 0.1), windowFrameMaterial);
+            sideWindowFrameH1.position.set(2.05, 1.8 + 0.4, 0);
+            sideWindowFrameH1.rotation.y = Math.PI / 2;
+            house.add(sideWindowFrameH1);
+            const sideWindowFrameH2 = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.1, 0.1), windowFrameMaterial);
+            sideWindowFrameH2.position.set(2.05, 1.8 - 0.4, 0);
+            sideWindowFrameH2.rotation.y = Math.PI / 2;
+            house.add(sideWindowFrameH2);
+            const sideWindowFrameV1 = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.9, 0.1), windowFrameMaterial);
+            sideWindowFrameV1.position.set(2.05, 1.8, 0 + 0.4);
+            sideWindowFrameV1.rotation.y = Math.PI / 2;
+            house.add(sideWindowFrameV1);
+            const sideWindowFrameV2 = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.9, 0.1), windowFrameMaterial);
+            sideWindowFrameV2.position.set(2.05, 1.8, 0 - 0.4);
+            sideWindowFrameV2.rotation.y = Math.PI / 2;
+            house.add(sideWindowFrameV2);
+
+            // Точечный свет для бокового окна
             const sideWindowLight = new THREE.PointLight(0xFFE0B2, daySettings.windowLightIntensity, 5); 
             sideWindowLight.position.set(1.95, 1.8, 0); 
             sideWindowLight.castShadow = true;
             house.add(sideWindowLight);
             windowLights.push(sideWindowLight); 
 
-            // Chimney
+            // Дымоход
             const chimneyGeometry = new THREE.BoxGeometry(0.6, 1.5, 0.6);
             const chimneyMaterial = new THREE.MeshStandardMaterial({ color: 0x696969, roughness: 0.7, metalness: 0.0 });
             const chimney = new THREE.Mesh(chimneyGeometry, chimneyMaterial);
@@ -267,32 +304,57 @@
             chimney.castShadow = true;
             house.add(chimney);
 
+            // Ступени
+            // Добавлены polygonOffset для предотвращения Z-файтинга
+            const stepsMaterial = new THREE.MeshStandardMaterial({ color: 0x8B4513, roughness: 0.7, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: 1 });
+            const step1 = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.1, 0.4), stepsMaterial);
+            step1.position.set(0, 0.05, 2.2);
+            step1.castShadow = true;
+            step1.receiveShadow = true;
+            house.add(step1);
+            const step2 = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.1, 0.4), stepsMaterial);
+            step2.position.set(0, -0.05, 2.5);
+            step2.castShadow = true;
+            step2.receiveShadow = true;
+            house.add(step2);
+
+            // Деревянный настил вокруг дома
+            const deckGeometry = new THREE.BoxGeometry(5, 0.1, 5); // Больше, чем дом
+            // Добавлены polygonOffset для предотвращения Z-файтинга
+            const deckMaterial = new THREE.MeshStandardMaterial({ color: 0xA0522D, roughness: 0.6, metalness: 0.0, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: 1 });
+            const deck = new THREE.Mesh(deckGeometry, deckMaterial);
+            deck.position.y = 0.01; // Чуть выше уровня земли для предотвращения Z-файтинга
+            deck.castShadow = true;
+            deck.receiveShadow = true;
+            house.add(deck);
+
+
             scene.add(house);
         }
 
         /**
-         * Creates the player character.
+         * Создает персонажа игрока.
          */
         function createPlayer() {
             player = new THREE.Group();
 
-            // Body
-            const bodyGeometry = new THREE.CylinderGeometry(0.3, 0.3, 1.2, 16); // Increased segments
+            // Тело
+            const bodyGeometry = new THREE.CylinderGeometry(0.3, 0.3, 1.2, 16); // Увеличено количество сегментов
             const bodyMaterial = new THREE.MeshStandardMaterial({ color: 0x4169E1, roughness: 0.5 });
             const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
             body.position.y = 0.6; 
             body.castShadow = true;
             player.add(body);
 
-            // Head
-            const headGeometry = new THREE.SphereGeometry(0.25, 16, 16); // Increased segments
+            // Голова
+            const headGeometry = new THREE.SphereGeometry(0.25, 16, 16); // Увеличено количество сегментов
             const headMaterial = new THREE.MeshStandardMaterial({ color: 0xFFDBB3, roughness: 0.6 });
             const head = new THREE.Mesh(headGeometry, headMaterial);
             head.position.y = 1.45; 
             head.castShadow = true;
             player.add(head);
 
-            // Eyes
+            // Глаза
             const eyeGeometry = new THREE.SphereGeometry(0.05, 8, 8);
             const eyeMaterial = new THREE.MeshBasicMaterial({ color: 0x000000 });
 
@@ -304,8 +366,8 @@
             rightEye.position.set(0.1, 1.5, 0.2); 
             player.add(rightEye);
 
-            // Arms
-            const armGeometry = new THREE.CylinderGeometry(0.08, 0.08, 0.8, 8); // Increased segments
+            // Руки
+            const armGeometry = new THREE.CylinderGeometry(0.08, 0.08, 0.8, 8); // Увеличено количество сегментов
             const armMaterial = new THREE.MeshStandardMaterial({ color: 0xFFDBB3, roughness: 0.6 });
 
             const leftArm = new THREE.Mesh(armGeometry, armMaterial);
@@ -318,8 +380,8 @@
             rightArm.castShadow = true;
             player.add(rightArm);
 
-            // Legs
-            const legGeometry = new THREE.CylinderGeometry(0.1, 0.1, 0.8, 8); // Increased segments
+            // Ноги
+            const legGeometry = new THREE.CylinderGeometry(0.1, 0.1, 0.8, 8); // Увеличено количество сегментов
             const legMaterial = new THREE.MeshStandardMaterial({ color: 0x654321, roughness: 0.7 });
 
             const leftLeg = new THREE.Mesh(legGeometry, legMaterial);
@@ -339,10 +401,10 @@
         }
 
         /**
-         * Creates the ground plane.
+         * Создает плоскость земли.
          */
         function createGround() {
-            const groundGeometry = new THREE.PlaneGeometry(200, 200); // Doubled size
+            const groundGeometry = new THREE.PlaneGeometry(200, 200); // Удвоенный размер
             const groundMaterial = new THREE.MeshStandardMaterial({ color: 0x90EE90, roughness: 0.9, metalness: 0.0 });
             const ground = new THREE.Mesh(groundGeometry, groundMaterial);
             ground.rotation.x = -Math.PI / 2;
@@ -351,25 +413,25 @@
         }
 
         /**
-         * Creates various types of trees (deciduous and fir) and places them, avoiding the house and lake.
+         * Создает различные типы деревьев (лиственные и ели) и размещает их, избегая дома и озера.
          */
         function createTrees() {
-            const numDeciduousTrees = 60; // Doubled number for density in larger world
-            const numFirTrees = 80;     // Doubled number
+            const numDeciduousTrees = 60; // Удвоено количество для плотности в большем мире
+            const numFirTrees = 80;      // Удвоено количество
 
-            // Define house bounding box for collision detection
+            // Определяем ограничивающий прямоугольник дома для обнаружения столкновений
             const houseMinX = -2;
             const houseMaxX = 2;
             const houseMinZ = -2;
             const houseMaxZ = 2;
 
-            // Define lake bounding circle for collision detection (scaled position and radius)
-            const lakeCenterX = 60; // Doubled
+            // Определяем ограничивающий круг озера для обнаружения столкновений (масштабированное положение и радиус)
+            const lakeCenterX = 60; // Удвоено
             const lakeCenterZ = 0;
-            const lakeRadius = 30; // Doubled
-            const lakeBuffer = 6; // Doubled buffer zone
+            const lakeRadius = 30; // Удвоено
+            const lakeBuffer = 6; // Удвоенная буферная зона
 
-            // Deciduous trees
+            // Лиственные деревья
             const deciduousTrunkMaterial = new THREE.MeshStandardMaterial({ color: 0x8B4513, roughness: 0.8 });
             const deciduousFoliageMaterial = new THREE.MeshStandardMaterial({ color: 0x228B22, roughness: 0.7 });
 
@@ -378,16 +440,16 @@
                 let treeX, treeZ;
                 let isValidPosition = false;
 
-                // Keep generating random positions until it's outside the house and lake
+                // Продолжаем генерировать случайные позиции, пока она не окажется за пределами дома и озера
                 while (!isValidPosition) {
-                    treeX = -90 + Math.random() * 180; // Doubled range
-                    treeZ = -90 + Math.random() * 180; // Doubled range
+                    treeX = -90 + Math.random() * 180; // Удвоенный диапазон
+                    treeZ = -90 + Math.random() * 180; // Удвоенный диапазон
 
-                    // Check if the tree is too close to the house
+                    // Проверяем, не слишком ли дерево близко к дому
                     const isNearHouse = (treeX >= houseMinX - 3 && treeX <= houseMaxX + 3 && 
                                         treeZ >= houseMinZ - 3 && treeZ <= houseMaxZ + 3);
 
-                    // Check if the tree is too close to the lake
+                    // Проверяем, не слишком ли дерево близко к озеру
                     const distanceToLakeCenter = Math.sqrt(
                         Math.pow(treeX - lakeCenterX, 2) + 
                         Math.pow(treeZ - lakeCenterZ, 2)
@@ -399,18 +461,26 @@
                     }
                 }
                 
-                const trunkGeometry = new THREE.CylinderGeometry(0.2, 0.3, 2, 8); // Increased segments
+                const trunkGeometry = new THREE.CylinderGeometry(0.2, 0.3, 2, 8); // Увеличено количество сегментов
                 const trunk = new THREE.Mesh(trunkGeometry, deciduousTrunkMaterial);
                 trunk.position.y = 1;
                 trunk.castShadow = true;
                 trunk.receiveShadow = true;
                 tree.add(trunk);
 
-                const foliageGeometry = new THREE.SphereGeometry(1.2, 16, 16); // Increased segments
-                const foliage = new THREE.Mesh(foliageGeometry, deciduousFoliageMaterial);
-                foliage.position.y = 2.5;
-                foliage.castShadow = true;
-                tree.add(foliage);
+                // Листва из нескольких сфер
+                const numFoliageSpheres = 3 + Math.floor(Math.random() * 3); // 3-5 сфер
+                for (let j = 0; j < numFoliageSpheres; j++) {
+                    const foliageGeometry = new THREE.SphereGeometry(0.8 + Math.random() * 0.4, 16, 16); // Варьирующиеся размеры
+                    const foliage = new THREE.Mesh(foliageGeometry, deciduousFoliageMaterial); // Исправлено: foliageGeometry вместо foliometry
+                    foliage.position.set(
+                        (Math.random() - 0.5) * 1.5, // Небольшой разброс по X
+                        2.5 + (Math.random() - 0.5) * 0.5, // Небольшой разброс по Y
+                        (Math.random() - 0.5) * 1.5  // Небольшой разброс по Z
+                    );
+                    foliage.castShadow = true;
+                    tree.add(foliage);
+                }
 
                 tree.position.x = treeX; 
                 tree.position.z = treeZ; 
@@ -419,7 +489,7 @@
                 scene.add(tree);
             }
 
-            // Fir trees (coniferous)
+            // Ели (хвойные)
             const firTrunkMaterial = new THREE.MeshStandardMaterial({ color: 0x5C4033, roughness: 0.8 }); 
             const firFoliageMaterial = new THREE.MeshStandardMaterial({ color: 0x006400, roughness: 0.7 }); 
 
@@ -428,16 +498,16 @@
                 let treeX, treeZ;
                 let isValidPosition = false;
 
-                // Keep generating random positions until it's outside the house and lake
+                // Продолжаем генерировать случайные позиции, пока она не окажется за пределами дома и озера
                 while (!isValidPosition) {
-                    treeX = -90 + Math.random() * 180; // Doubled range
-                    treeZ = -90 + Math.random() * 180; // Doubled range
+                    treeX = -90 + Math.random() * 180; // Удвоенный диапазон
+                    treeZ = -90 + Math.random() * 180; // Удвоенный диапазон
 
-                    // Check if the tree is too close to the house
+                    // Проверяем, не слишком ли дерево близко к дому
                     const isNearHouse = (treeX >= houseMinX - 3 && treeX <= houseMaxX + 3 && 
                                         treeZ >= houseMinZ - 3 && treeZ <= houseMaxZ + 3);
 
-                    // Check if the tree is too close to the lake
+                    // Проверяем, не слишком ли дерево близко к озеру
                     const distanceToLakeCenter = Math.sqrt(
                         Math.pow(treeX - lakeCenterX, 2) + 
                         Math.pow(treeZ - lakeCenterZ, 2)
@@ -449,14 +519,14 @@
                     }
                 }
 
-                const trunkGeometry = new THREE.CylinderGeometry(0.15, 0.25, 2.5, 8); // Increased segments
+                const trunkGeometry = new THREE.CylinderGeometry(0.15, 0.25, 2.5, 8); // Увеличено количество сегментов
                 const trunk = new THREE.Mesh(trunkGeometry, firTrunkMaterial);
                 trunk.position.y = 1.25;
                 trunk.castShadow = true;
                 trunk.receiveShadow = true;
                 firTree.add(trunk);
 
-                // Use a single variable for foliage meshes within the loop
+                // Используем одну переменную для мешей листвы внутри цикла
                 let foliageGeometry;
                 let foliageMesh;
 
@@ -487,10 +557,10 @@
         }
 
         /**
-         * Creates the lake with fish.
+         * Создает озеро с рыбой.
          */
         function createLake() {
-            // Define points for the irregular lake shape
+            // Определяем точки для нерегулярной формы озера
             const shapePoints = [
                 new THREE.Vector2(0, 15),
                 new THREE.Vector2(8, 12),
@@ -503,32 +573,32 @@
                 new THREE.Vector2(-13, 5),
                 new THREE.Vector2(-8, 12)
             ];
-            // Scale points to double the lake size
+            // Масштабируем точки, чтобы удвоить размер озера
             const scaledShapePoints = shapePoints.map(p => new THREE.Vector2(p.x * 2, p.y * 2));
 
             const lakeShape = new THREE.Shape(scaledShapePoints);
             const lakeGeometry = new THREE.ShapeGeometry(lakeShape); 
             
-            // Water material with transparency and reflectivity
+            // Материал воды с прозрачностью и отражательной способностью
             const waterMaterial = new THREE.MeshStandardMaterial({
                 color: 0x0066FF, 
                 transparent: true,
                 opacity: 0.7,
-                roughness: 0.1, // Low roughness for more reflection
-                metalness: 0.8, // High metalness for more reflection
+                roughness: 0.1, // Низкая шероховатость для большего отражения
+                metalness: 0.8, // Высокая металличность для большего отражения
                 side: THREE.DoubleSide 
             });
             const lake = new THREE.Mesh(lakeGeometry, waterMaterial);
             lake.rotation.x = -Math.PI / 2; 
-            lake.position.set(60, 0.01, 0); // Doubled X position
+            lake.position.set(60, 0.01, 0); // Удвоенная позиция по X
             scene.add(lake);
 
-            // Fish
+            // Рыба
             const numFish = 10;
             const fishGeometry = new THREE.BoxGeometry(0.5, 0.2, 0.2); 
             const fishMaterial = new THREE.MeshStandardMaterial({ color: 0xFF8C00 }); 
 
-            const fishBoundaryRadius = 36; // Doubled
+            const fishBoundaryRadius = 36; // Удвоено
 
             for (let i = 0; i < numFish; i++) {
                 const f = new THREE.Mesh(fishGeometry, fishMaterial);
@@ -549,21 +619,21 @@
         }
 
         /**
-         * Creates vegetation around the lake (bushes and reeds).
+         * Создает растительность вокруг озера (кусты и камыши).
          */
         function createLakeVegetation() {
-            const lakeCenterX = 60; // Doubled
+            const lakeCenterX = 60; // Удвоено
             const lakeCenterZ = 0;
-            const lakeRadius = 30; // Doubled
-            const numBushes = 60; // Doubled
-            const numReeds = 100; // Doubled
+            const lakeRadius = 30; // Удвоено
+            const numBushes = 60; // Удвоено
+            const numReeds = 100; // Удвоено
 
             const bushMaterial = new THREE.MeshStandardMaterial({ color: 0x558B2F, roughness: 0.8 });
             for (let i = 0; i < numBushes; i++) {
-                const bush = new THREE.Mesh(new THREE.SphereGeometry(0.3 + Math.random() * 0.3, 12, 12), bushMaterial); // Increased segments
+                const bush = new THREE.Mesh(new THREE.SphereGeometry(0.3 + Math.random() * 0.3, 12, 12), bushMaterial); // Увеличено количество сегментов
                 
                 const angle = Math.random() * Math.PI * 2;
-                const distance = lakeRadius + 4 + Math.random() * 10; // Doubled distance and range
+                const distance = lakeRadius + 4 + Math.random() * 10; // Удвоено расстояние и диапазон
                 bush.position.set(
                     lakeCenterX + Math.cos(angle) * distance,
                     0.15, 
@@ -581,7 +651,7 @@
                 const reed = new THREE.Group();
                 const height = 0.8 + Math.random() * 0.7;
 
-                const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.03, height, 8), reedStemMaterial); // Increased segments
+                const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.03, height, 8), reedStemMaterial); // Увеличено количество сегментов
                 stem.position.y = height / 2;
                 stem.castShadow = true;
                 stem.receiveShadow = true;
@@ -594,7 +664,7 @@
                 reed.add(head);
                 
                 const angle = Math.random() * Math.PI * 2;
-                const distance = lakeRadius - 2 + Math.random() * 4; // Doubled distance and range
+                const distance = lakeRadius - 2 + Math.random() * 4; // Удвоено расстояние и диапазон
                 reed.position.set(
                     lakeCenterX + Math.cos(angle) * distance,
                     0, 
@@ -607,23 +677,23 @@
         }
 
         /**
-         * Creates a pier and a boat on the lake.
+         * Создает пирс и лодку на озере.
          */
         function createPierAndBoat() {
-            const lakeCenter = new THREE.Vector3(60, 0.01, 0); // Doubled X position
+            const lakeCenter = new THREE.Vector3(60, 0.01, 0); // Удвоенная позиция по X
 
-            // Create pier
+            // Создаем пирс
             const pierMaterial = new THREE.MeshStandardMaterial({ color: 0x8B4513, roughness: 0.6 }); 
             
-            // Main part of the pier
+            // Основная часть пирса
             const pierBaseGeometry = new THREE.BoxGeometry(1.5, 0.2, 5); 
             const pierBase = new THREE.Mesh(pierBaseGeometry, pierMaterial);
-            pierBase.position.set(lakeCenter.x + 20, lakeCenter.y + pierBaseGeometry.parameters.height / 2 + 0.01, lakeCenter.z + 10); // Adjusted X position
+            pierBase.position.set(lakeCenter.x + 20, lakeCenter.y + pierBaseGeometry.parameters.height / 2 + 0.01, lakeCenter.z + 10); // Скорректированная позиция по X
             pierBase.castShadow = true;
             pierBase.receiveShadow = true;
             scene.add(pierBase);
 
-            // Pier supports
+            // Опоры пирса
             const pierLegGeometry = new THREE.CylinderGeometry(0.1, 0.1, 0.8, 8);
             for (let i = 0; i < 3; i++) {
                 const leg1 = new THREE.Mesh(pierLegGeometry, pierMaterial);
@@ -637,32 +707,32 @@
                 scene.add(leg2);
             }
 
-            // Create boat
+            // Создаем лодку
             const boat = new THREE.Group();
             const boatMaterial = new THREE.MeshStandardMaterial({ color: 0x6A5ACD, roughness: 0.4, metalness: 0.1 }); 
             const boatInsideMaterial = new THREE.MeshStandardMaterial({ color: 0x8B4513, roughness: 0.6 }); 
 
-            // Boat hull (main part)
+            // Корпус лодки (основная часть)
             const boatHullGeometry = new THREE.BoxGeometry(0.8, 0.3, 2.5);
             const boatHull = new THREE.Mesh(boatHullGeometry, boatMaterial);
             boatHull.position.y = 0; 
             boat.add(boatHull);
 
-            // Boat front (cone or more complex shape)
-            const boatFrontGeometry = new THREE.ConeGeometry(0.4, 0.5, 8); // Increased segments
+            // Нос лодки (конус или более сложная форма)
+            const boatFrontGeometry = new THREE.ConeGeometry(0.4, 0.5, 8); // Увеличено количество сегментов
             const boatFront = new THREE.Mesh(boatFrontGeometry, boatMaterial);
             boatFront.rotation.x = Math.PI / 2; 
             boatFront.position.set(0, 0, 1.25); 
             boat.add(boatFront);
 
-            // Inside part (seat)
+            // Внутренняя часть (сиденье)
             const seatGeometry = new THREE.BoxGeometry(0.6, 0.1, 0.5);
             const seat = new THREE.Mesh(seatGeometry, boatInsideMaterial);
             seat.position.set(0, 0.1, 0); 
             boat.add(seat);
 
-            // Position the boat at lake level
-            boat.position.set(pierBase.position.x + 2, lakeCenter.y + boatHullGeometry.parameters.height / 2, pierBase.position.z + 1.5); // Adjusted X position
+            // Размещаем лодку на уровне озера
+            boat.position.set(pierBase.position.x + 2, lakeCenter.y + boatHullGeometry.parameters.height / 2, pierBase.position.z + 1.5); // Скорректированная позиция по X
             boat.rotation.y = -Math.PI / 4; 
             boat.castShadow = true;
             boat.receiveShadow = true;
@@ -670,13 +740,13 @@
         }
 
         /**
-         * Creates a circular fence around the house.
+         * Создает круговой забор вокруг дома.
          */
         function createFence() {
             const fenceRadius = 6; 
             const fenceHeight = 0.8;
             const postRadius = 0.08;
-            const numPosts = 32; // Increased posts for smoother circle
+            const numPosts = 32; // Увеличено количество столбов для более гладкого круга
 
             const fenceMaterial = new THREE.MeshStandardMaterial({ color: 0x8B4513, roughness: 0.7 }); 
 
@@ -688,7 +758,7 @@
                 posts.push(new THREE.Vector3(x, fenceHeight / 2, z));
             }
 
-            // Create fence posts
+            // Создаем столбы забора
             const fencePostGeometry = new THREE.CylinderGeometry(postRadius, postRadius, fenceHeight, 8);
             posts.forEach(pos => {
                 const post = new THREE.Mesh(fencePostGeometry, fenceMaterial);
@@ -700,27 +770,27 @@
         }
 
         /**
-         * Creates rabbits with smooth forward/backward movement and bobbing.
+         * Создает кроликов с плавным движением вперед/назад и покачиванием.
          */
         function createRabbits() {
             const numRabbits = 3; 
             const rabbitMaterial = new THREE.MeshStandardMaterial({ color: 0xF5F5DC, roughness: 0.7 }); 
-            const rabbitScale = 0.6; // Increased scale for better visibility
+            const rabbitScale = 0.6; // Увеличен масштаб для лучшей видимости
 
-            // Define house and lake bounding boxes/circles for collision detection
+            // Определяем ограничивающие прямоугольники/круги дома и озера для обнаружения столкновений
             const houseMinX = -2;
             const houseMaxX = 2;
             const houseMinZ = -2;
             const houseMaxZ = 2;
 
-            const lakeCenterX = 60; // Scaled
+            const lakeCenterX = 60; // Масштабировано
             const lakeCenterZ = 0;
-            const lakeRadius = 30; // Scaled
-            const exclusionBuffer = 4; // Adjusted buffer zone
+            const lakeRadius = 30; // Масштабировано
+            const exclusionBuffer = 4; // Скорректированная буферная зона
 
-            // Movement properties for rabbits (smooth oscillation)
-            const rabbitOscillationSpeed = 0.001; // Slower speed for oscillation
-            const rabbitOscillationAmplitude = 5; // Increased amplitude for more noticeable movement
+            // Свойства движения для кроликов (плавная осцилляция)
+            const rabbitOscillationSpeed = 0.001; // Более низкая скорость для осцилляции
+            const rabbitOscillationAmplitude = 5; // Увеличена амплитуда для более заметного движения
 
             for (let i = 0; i < numRabbits; i++) {
                 const rabbit = new THREE.Group();
@@ -728,14 +798,14 @@
                 let isValidPosition = false;
 
                 while (!isValidPosition) {
-                    rabbitX = -90 + Math.random() * 180; // Doubled range
-                    rabbitZ = -90 + Math.random() * 180; // Doubled range
+                    rabbitX = -90 + Math.random() * 180; // Удвоенный диапазон
+                    rabbitZ = -90 + Math.random() * 180; // Удвоенный диапазон
 
-                    // Check if the rabbit is too close to the house
+                    // Проверяем, не слишком ли кролик близко к дому
                     const isNearHouse = (rabbitX >= houseMinX - exclusionBuffer && rabbitX <= houseMaxX + exclusionBuffer && 
                                         rabbitZ >= houseMinZ - exclusionBuffer && rabbitZ <= houseMaxZ + exclusionBuffer);
 
-                    // Check if the rabbit is too close to the lake
+                    // Проверяем, не слишком ли кролик близко к озеру
                     const distanceToLakeCenter = Math.sqrt(
                         Math.pow(rabbitX - lakeCenterX, 2) + 
                         Math.pow(rabbitZ - lakeCenterZ, 2)
@@ -747,8 +817,8 @@
                     }
                 }
 
-                // Body
-                const bodyGeometry = new THREE.SphereGeometry(0.8 * rabbitScale, 24, 12); // Increased segments
+                // Тело
+                const bodyGeometry = new THREE.SphereGeometry(0.8 * rabbitScale, 24, 12); // Увеличено количество сегментов
                 const body = new THREE.Mesh(bodyGeometry, rabbitMaterial);
                 body.position.y = 0.4 * rabbitScale; 
                 body.scale.z = 1.5; 
@@ -756,14 +826,14 @@
                 body.receiveShadow = true;
                 rabbit.add(body);
 
-                // Head
-                const headGeometry = new THREE.SphereGeometry(0.5 * rabbitScale, 24, 12); // Increased segments
+                // Голова
+                const headGeometry = new THREE.SphereGeometry(0.5 * rabbitScale, 24, 12); // Увеличено количество сегментов
                 const head = new THREE.Mesh(headGeometry, rabbitMaterial);
                 head.position.set(0.6 * rabbitScale, 0.8 * rabbitScale, 0); 
                 head.castShadow = true;
                 rabbit.add(head);
 
-                // Ears
+                // Уши
                 const earGeometry = new THREE.BoxGeometry(0.2 * rabbitScale, 1.2 * rabbitScale, 0.2 * rabbitScale); 
                 const leftEar = new THREE.Mesh(earGeometry, rabbitMaterial);
                 leftEar.position.set(0.7 * rabbitScale, 1.6 * rabbitScale, 0.3 * rabbitScale); 
@@ -777,8 +847,8 @@
                 rightEar.castShadow = true;
                 rabbit.add(rightEar);
 
-                // Tail
-                const tailGeometry = new THREE.SphereGeometry(0.3 * rabbitScale, 16, 16); // Increased segments
+                // Хвост
+                const tailGeometry = new THREE.SphereGeometry(0.3 * rabbitScale, 16, 16); // Увеличено количество сегментов
                 const tailMaterial = new THREE.MeshStandardMaterial({ color: 0xFFFFFF, roughness: 0.7 }); 
                 const tail = new THREE.Mesh(tailGeometry, tailMaterial);
                 tail.position.set(-1.0 * rabbitScale, 0.4 * rabbitScale, 0); 
@@ -786,14 +856,14 @@
                 rabbit.add(tail);
 
                 rabbit.position.set(rabbitX, 0, rabbitZ); 
-                rabbit.rotation.y = Math.random() * Math.PI * 2; // Random initial rotation
-                rabbit.userData.initialRotationY = rabbit.rotation.y; // Store initial rotation for movement
-                rabbit.userData.offset = Math.random() * Math.PI * 2; // Unique offset for bobbing
+                rabbit.rotation.y = Math.random() * Math.PI * 2; // Случайное начальное вращение
+                rabbit.userData.initialRotationY = rabbit.rotation.y; // Сохраняем начальное вращение для движения
+                rabbit.userData.offset = Math.random() * Math.PI * 2; // Уникальное смещение для покачивания
                 
-                rabbit.userData.initialPosition = rabbit.position.clone(); // Store initial position for oscillation
-                rabbit.userData.oscillationSpeed = rabbitOscillationSpeed + (Math.random() - 0.5) * 0.0002; // Slightly varied speed
-                rabbit.userData.oscillationAmplitude = rabbitOscillationAmplitude + (Math.random() - 0.5) * 0.5; // Slightly varied amplitude
-                rabbit.userData.oscillationOffset = Math.random() * Math.PI * 2; // Unique offset for oscillation
+                rabbit.userData.initialPosition = rabbit.position.clone(); // Сохраняем начальную позицию для осцилляции
+                rabbit.userData.oscillationSpeed = rabbitOscillationSpeed + (Math.random() - 0.5) * 0.0002; // Немного варьирующаяся скорость
+                rabbit.userData.oscillationAmplitude = rabbitOscillationAmplitude + (Math.random() - 0.5) * 0.5; // Немного варьирующаяся амплитуда
+                rabbit.userData.oscillationOffset = Math.random() * Math.PI * 2; // Уникальное смещение для осцилляции
 
                 scene.add(rabbit);
                 rabbits.push(rabbit);
@@ -801,10 +871,10 @@
         }
 
         /**
-         * Creates smoke particles for the chimney.
+         * Создает частицы дыма для дымохода.
          */
         function createSmokeParticles() {
-            const particleGeometry = new THREE.SphereGeometry(0.1, 8, 8); // Increased segments
+            const particleGeometry = new THREE.SphereGeometry(0.1, 8, 8); // Увеличено количество сегментов
             const particleMaterial = new THREE.MeshBasicMaterial({
                 color: 0xDDDDDD,
                 transparent: true,
@@ -828,26 +898,26 @@
         }
 
         /**
-         * Creates scattered rocks/stones across the terrain.
+         * Создает разбросанные камни/камни по местности.
          */
         function createRocks() {
             const numRocks = 100;
-            const rockMaterial = new THREE.MeshStandardMaterial({ color: 0x808080, roughness: 0.9, metalness: 0.0 }); // Grey stone color
+            const rockMaterial = new THREE.MeshStandardMaterial({ color: 0x808080, roughness: 0.9, metalness: 0.0 }); // Серый цвет камня
 
-            // Define exclusion zones (house and lake)
+            // Определяем зоны исключения (дом и озеро)
             const houseMinX = -2; const houseMaxX = 2;
             const houseMinZ = -2; const houseMaxZ = 2;
             const lakeCenterX = 60; const lakeCenterZ = 0;
             const lakeRadius = 30;
-            const exclusionBuffer = 5; // Buffer zone around house/lake
+            const exclusionBuffer = 5; // Буферная зона вокруг дома/озера
 
             for (let i = 0; i < numRocks; i++) {
                 let rockX, rockZ;
                 let isValidPosition = false;
 
                 while (!isValidPosition) {
-                    rockX = -90 + Math.random() * 180; // Full world range
-                    rockZ = -90 + Math.random() * 180; // Full world range
+                    rockX = -90 + Math.random() * 180; // Полный диапазон мира
+                    rockZ = -90 + Math.random() * 180; // Полный диапазон мира
 
                     const isNearHouse = (rockX >= houseMinX - exclusionBuffer && rockX <= houseMaxX + exclusionBuffer && 
                                         rockZ >= houseMinZ - exclusionBuffer && rockZ <= houseMaxZ + exclusionBuffer);
@@ -862,17 +932,17 @@
                     }
                 }
 
-                // Randomly choose between a sphere or box geometry for variety
+                // Случайный выбор между сферической или кубической геометрией для разнообразия
                 let rockGeometry;
                 if (Math.random() > 0.5) {
-                    rockGeometry = new THREE.SphereGeometry(0.2 + Math.random() * 0.4, 8, 8); // Small spheres
+                    rockGeometry = new THREE.SphereGeometry(0.2 + Math.random() * 0.4, 8, 8); // Маленькие сферы
                 } else {
-                    rockGeometry = new THREE.BoxGeometry(0.3 + Math.random() * 0.5, 0.1 + Math.random() * 0.3, 0.3 + Math.random() * 0.5); // Flat-ish boxes
+                    rockGeometry = new THREE.BoxGeometry(0.3 + Math.random() * 0.5, 0.1 + Math.random() * 0.3, 0.3 + Math.random() * 0.5); // Плоские кубы
                 }
                 
                 const rock = new THREE.Mesh(rockGeometry, rockMaterial);
-                rock.position.set(rockX, rockGeometry.parameters.height / 2 || rockGeometry.parameters.radius || 0.1, rockZ); // Place on ground
-                rock.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI); // Random rotation
+                rock.position.set(rockX, rockGeometry.parameters.height / 2 || rockGeometry.parameters.radius || 0.1, rockZ); // Размещаем на земле
+                rock.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI); // Случайное вращение
                 rock.castShadow = true;
                 rock.receiveShadow = true;
                 scene.add(rock);
@@ -880,19 +950,19 @@
         }
 
         /**
-         * Creates dynamic clouds in the sky.
+         * Создает динамические облака в небе.
          */
-        let cloudMeshes = []; // Array to store cloud meshes for animation
+        let cloudMeshes = []; // Массив для хранения мешей облаков для анимации
         function createClouds() {
             const numClouds = 10;
             const cloudMaterial = new THREE.MeshStandardMaterial({ color: 0xFFFFFF, transparent: true, opacity: 0.8, roughness: 0.5 });
 
             for (let i = 0; i < numClouds; i++) {
                 const cloud = new THREE.Group();
-                const numParts = 3 + Math.floor(Math.random() * 3); // 3-5 parts per cloud
+                const numParts = 3 + Math.floor(Math.random() * 3); // 3-5 частей на облако
 
                 for (let j = 0; j < numParts; j++) {
-                    const partGeometry = new THREE.SphereGeometry(3 + Math.random() * 2, 16, 16); // Varying sizes
+                    const partGeometry = new THREE.SphereGeometry(3 + Math.random() * 2, 16, 16); // Варьирующиеся размеры
                     const part = new THREE.Mesh(partGeometry, cloudMaterial);
                     part.position.set(
                         (Math.random() - 0.5) * 10,
@@ -904,26 +974,26 @@
                 }
 
                 cloud.position.set(
-                    -90 + Math.random() * 180, // Wide range across the world
-                    30 + Math.random() * 10,  // High in the sky
+                    -90 + Math.random() * 180, // Широкий диапазон по всему миру
+                    30 + Math.random() * 10,  // Высоко в небе
                     -90 + Math.random() * 180
                 );
-                cloud.scale.setScalar(0.5 + Math.random()); // Vary cloud size
-                cloud.userData.speed = (Math.random() - 0.5) * 0.05; // Random horizontal speed
+                cloud.scale.setScalar(0.5 + Math.random()); // Варьируем размер облака
+                cloud.userData.speed = (Math.random() - 0.5) * 0.05; // Случайная горизонтальная скорость
                 scene.add(cloud);
                 clouds.push(cloud);
             }
         }
 
         /**
-         * Creates a mailbox near the house.
+         * Создает почтовый ящик рядом с домом.
          */
         function createMailbox() {
             const mailbox = new THREE.Group();
-            const postMaterial = new THREE.MeshStandardMaterial({ color: 0x8B4513, roughness: 0.7 }); // Brown post
-            const boxMaterial = new THREE.MeshStandardMaterial({ color: 0xFF0000, roughness: 0.6 }); // Red box
+            const postMaterial = new THREE.MeshStandardMaterial({ color: 0x8B4513, roughness: 0.7 }); // Коричневый столб
+            const boxMaterial = new THREE.MeshStandardMaterial({ color: 0xFF0000, roughness: 0.6 }); // Красный ящик
 
-            // Post
+            // Столб
             const postGeometry = new THREE.CylinderGeometry(0.1, 0.1, 1.0, 8);
             const post = new THREE.Mesh(postGeometry, postMaterial);
             post.position.y = 0.5;
@@ -931,7 +1001,7 @@
             post.receiveShadow = true;
             mailbox.add(post);
 
-            // Box
+            // Ящик
             const boxGeometry = new THREE.BoxGeometry(0.4, 0.3, 0.6);
             const box = new THREE.Mesh(boxGeometry, boxMaterial);
             box.position.set(0, 1.2, 0);
@@ -939,26 +1009,188 @@
             box.receiveShadow = true;
             mailbox.add(box);
 
-            // Flag (small cylinder)
+            // Флажок (маленький цилиндр)
             const flagGeometry = new THREE.CylinderGeometry(0.02, 0.02, 0.3, 4);
-            const flagMaterial = new THREE.MeshStandardMaterial({ color: 0x0000FF, roughness: 0.5 }); // Blue flag
+            const flagMaterial = new THREE.MeshStandardMaterial({ color: 0x0000FF, roughness: 0.5 }); // Синий флажок
             const flag = new THREE.Mesh(flagGeometry, flagMaterial);
             flag.position.set(0.2, 1.35, 0.2);
-            flag.rotation.z = Math.PI / 2; // Make it horizontal
+            flag.rotation.z = Math.PI / 2; // Делаем его горизонтальным
             flag.castShadow = true;
             mailbox.add(flag);
 
-            mailbox.position.set(-3, 0, 3); // Position near the house
-            mailbox.rotation.y = Math.PI / 4; // Slightly rotate
+            mailbox.position.set(-3, 0, 3); // Позиция рядом с домом
+            mailbox.rotation.y = Math.PI / 4; // Немного поворачиваем
             scene.add(mailbox);
+        }
+
+        /**
+         * Создает простую грунтовую дорожку, ведущую к дому.
+         */
+        function createPath() {
+            const pathMaterial = new THREE.MeshStandardMaterial({ color: 0x8B4513, roughness: 0.9 }); // Коричневый цвет земли
+            const pathGeometry = new THREE.BoxGeometry(1.5, 0.01, 10); // Ширина, высота, длина
+            const path = new THREE.Mesh(pathGeometry, pathMaterial);
+            path.position.set(-1, 0.02, 0); // Позиция перед домом, Y-координата немного увеличена для предотвращения Z-файтинга
+            path.receiveShadow = true;
+            scene.add(path);
+        }
+
+        /**
+         * Создает простую деревянную скамейку.
+         */
+        function createBench() {
+            const bench = new THREE.Group();
+            const woodMaterial = new THREE.MeshStandardMaterial({ color: 0x8B4513, roughness: 0.7 }); // Деревянный материал
+
+            // Сиденье
+            const seatGeometry = new THREE.BoxGeometry(1.5, 0.1, 0.4);
+            const seat = new THREE.Mesh(seatGeometry, woodMaterial);
+            seat.position.y = 0.4;
+            seat.castShadow = true;
+            seat.receiveShadow = true;
+            bench.add(seat);
+
+            // Ножки
+            const legGeometry = new THREE.BoxGeometry(0.1, 0.4, 0.1);
+            const leg1 = new THREE.Mesh(legGeometry, woodMaterial);
+            leg1.position.set(-0.6, 0.2, 0.15);
+            leg1.castShadow = true;
+            leg1.receiveShadow = true;
+            bench.add(leg1);
+            const leg2 = new THREE.Mesh(legGeometry, woodMaterial);
+            leg2.position.set(0.6, 0.2, 0.15);
+            leg2.castShadow = true;
+            leg2.receiveShadow = true;
+            bench.add(leg2);
+            const leg3 = new THREE.Mesh(legGeometry, woodMaterial);
+            leg3.position.set(-0.6, 0.2, -0.15);
+            leg3.castShadow = true;
+            leg3.receiveShadow = true;
+            bench.add(leg3);
+            const leg4 = new THREE.Mesh(legGeometry, woodMaterial);
+            leg4.position.set(0.6, 0.2, -0.15);
+            leg4.castShadow = true;
+            leg4.receiveShadow = true;
+            bench.add(leg4);
+
+            bench.position.set(-2, 0, -3); // Позиция рядом с домом
+            bench.rotation.y = Math.PI / 8;
+            scene.add(bench);
+        }
+
+        /**
+         * Создает кувшинки на озере.
+         */
+        function createLilyPads() {
+            const lilyPadMaterial = new THREE.MeshStandardMaterial({ color: 0x32CD32, roughness: 0.7 }); // Зеленый цвет кувшинки
+            const flowerMaterial = new THREE.MeshStandardMaterial({ color: 0xFFB6C1, roughness: 0.5 }); // Розовый цвет цветка
+
+            const lakeCenterX = 60;
+            const lakeCenterZ = 0;
+            const lakeRadius = 28; // Чуть меньше радиуса озера, чтобы они были внутри
+
+            const numLilyPads = 20;
+
+            for (let i = 0; i < numLilyPads; i++) {
+                const lilyPad = new THREE.Group();
+                const radius = 0.4 + Math.random() * 0.2;
+                const padGeometry = new THREE.CircleGeometry(radius, 16); // Круглая кувшинка
+                const pad = new THREE.Mesh(padGeometry, lilyPadMaterial);
+                pad.rotation.x = -Math.PI / 2;
+                pad.position.y = 0.02; // Чуть выше воды
+                lilyPad.add(pad);
+
+                // Добавляем маленький цветок на некоторые кувшинки
+                if (Math.random() > 0.5) {
+                    const flowerGeometry = new THREE.CylinderGeometry(0.05, 0.05, 0.05, 8);
+                    const flower = new THREE.Mesh(flowerGeometry, flowerMaterial);
+                    flower.position.y = 0.04;
+                    lilyPad.add(flower);
+                }
+
+                // Размещаем кувшинки случайным образом внутри озера
+                const angle = Math.random() * Math.PI * 2;
+                const distance = Math.random() * lakeRadius;
+                lilyPad.position.set(
+                    lakeCenterX + Math.cos(angle) * distance,
+                    0, 
+                    lakeCenterZ + Math.sin(angle) * distance
+                );
+                lilyPad.rotation.z = Math.random() * Math.PI * 2; // Случайное вращение
+                scene.add(lilyPad);
+            }
+        }
+
+        /**
+         * Создает простую птицу, которая летает по кругу.
+         */
+        function createBird() {
+            bird = new THREE.Group();
+            const bodyMaterial = new THREE.MeshStandardMaterial({ color: 0x4B0082, roughness: 0.5 }); // Темно-фиолетовый
+
+            // Тело птицы
+            const bodyGeometry = new THREE.SphereGeometry(0.3, 12, 12);
+            const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+            body.scale.z = 2; // Вытянутое тело
+            bird.add(body);
+
+            // Крылья
+            const wingGeometry = new THREE.BoxGeometry(0.1, 0.05, 0.8);
+            const wingMaterial = new THREE.MeshStandardMaterial({ color: 0x6A5ACD, roughness: 0.5 }); // Светло-фиолетовый
+            
+            const leftWing = new THREE.Mesh(wingGeometry, wingMaterial);
+            leftWing.position.set(-0.2, 0, 0);
+            leftWing.rotation.y = Math.PI / 2;
+            leftWing.rotation.x = Math.PI / 4; // Начальный угол крыла
+            bird.add(leftWing);
+            bird.userData.leftWing = leftWing; // Сохраняем ссылку для анимации
+
+            const rightWing = new THREE.Mesh(wingGeometry, wingMaterial);
+            rightWing.position.set(0.2, 0, 0);
+            rightWing.rotation.y = -Math.PI / 2;
+            rightWing.rotation.x = -Math.PI / 4; // Начальный угол крыла
+            bird.add(rightWing);
+            bird.userData.rightWing = rightWing; // Сохраняем ссылку для анимации
+
+            bird.position.set(0, 15, -20); // Начальная позиция птицы
+            bird.userData.flightRadius = 50; // Радиус полета
+            bird.userData.flightSpeed = 0.005; // Скорость полета
+            bird.userData.flightAngle = Math.random() * Math.PI * 2; // Начальный угол полета
+            bird.userData.wingFlapSpeed = 0.2; // Скорость маха крыльями
+            bird.userData.wingFlapAmplitude = 0.5; // Амплитуда маха крыльями
+
+            scene.add(bird);
+        }
+
+        /**
+         * Создает светлячков, которые появляются только ночью.
+         */
+        function createFireflies() {
+            const fireflyMaterial = new THREE.MeshBasicMaterial({ color: 0xFFFF00, transparent: true, opacity: 0.0 }); // Желтый, изначально невидимый
+            const fireflyGeometry = new THREE.SphereGeometry(0.05, 8, 8);
+
+            const numFireflies = 50;
+            for (let i = 0; i < numFireflies; i++) {
+                const firefly = new THREE.Mesh(fireflyGeometry, fireflyMaterial.clone()); // Клонируем материал для индивидуальной прозрачности
+                firefly.position.set(
+                    -90 + Math.random() * 180,
+                    1 + Math.random() * 5, // Высота над землей
+                    -90 + Math.random() * 180
+                );
+                firefly.userData.speed = 0.01 + Math.random() * 0.02; // Скорость движения
+                firefly.userData.offset = Math.random() * Math.PI * 2; // Смещение для мерцания
+                firefly.userData.initialPosition = firefly.position.clone(); // Начальная позиция для движения
+                fireflies.push(firefly);
+                scene.add(firefly);
+            }
         }
 
 
         /**
-         * Sets up the scene's lighting (ambient, directional, hemisphere).
+         * Настраивает освещение сцены (окружающее, направленное, полусферное).
          */
         function setupLighting() {
-            // Remove existing lights to avoid duplication
+            // Удаляем существующие источники света, чтобы избежать дублирования
             scene.children.forEach(obj => {
                 if (obj instanceof THREE.Light) {
                     scene.remove(obj);
@@ -969,17 +1201,18 @@
             scene.add(ambientLight);
 
             const directionalLight = new THREE.DirectionalLight(daySettings.directionalColor, daySettings.directionalIntensity);
-            directionalLight.position.copy(daySettings.directionalPosition);
+            // Позиция DirectionalLight теперь зафиксирована, она не будет меняться между днем и ночью.
+            directionalLight.position.copy(daySettings.directionalPosition); 
             directionalLight.castShadow = true;
 
             directionalLight.shadow.mapSize.width = 2048;
             directionalLight.shadow.mapSize.height = 2048;
             directionalLight.shadow.camera.near = 0.5;
-            directionalLight.shadow.camera.far = 200; // Increased far plane for larger world
-            directionalLight.shadow.camera.left = -90; // Adjusted for larger world
-            directionalLight.shadow.camera.right = 90; // Adjusted for larger world
-            directionalLight.shadow.camera.top = 90; // Adjusted for larger world
-            directionalLight.shadow.camera.bottom = -90; // Adjusted for larger world
+            directionalLight.shadow.camera.far = 200; // Увеличена дальняя плоскость для большего мира
+            directionalLight.shadow.camera.left = -90; // Скорректировано для большего мира
+            directionalLight.shadow.camera.right = 90; // Скорректировано для большего мира
+            directionalLight.shadow.camera.top = 90; // Скорректировано для большего мира
+            directionalLight.shadow.camera.bottom = -90; // Скорректировано для большего мира
             scene.add(directionalLight);
 
             const hemisphereLight = new THREE.HemisphereLight(daySettings.hemisphereSkyColor, daySettings.hemisphereGroundColor, daySettings.hemisphereIntensity);
@@ -987,7 +1220,7 @@
         }
 
         /**
-         * Sets up event listeners for mouse and keyboard controls.
+         * Настраивает обработчики событий для управления мышью и клавиатурой.
          */
         function setupControls() {
             renderer.domElement.addEventListener('mousedown', onMouseDown);
@@ -1002,7 +1235,7 @@
             document.getElementById('toggleDayNightButton').addEventListener('click', toggleDayNight);
         }
 
-        // --- Event Handlers ---
+        // --- Обработчики событий ---
 
         function onKeyDown(event) {
             keys[event.code] = true;
@@ -1025,7 +1258,29 @@
 
                 cameraAngleY += deltaX * 0.01;
                 cameraAngleX += deltaY * 0.01;
-                cameraAngleX = Math.max(-Math.PI/2, Math.min(Math.PI/2, cameraAngleX));
+                
+                // Минимальная мировая Y-позиция, которую должна иметь камера.
+                // Это предотвращает опускание камеры под землю.
+                // Значение 1.5 обеспечивает, что камера находится немного выше уровня земли.
+                const minCameraY = 1.5; 
+
+                // Вычисляем предполагаемую мировую Y-позицию камеры.
+                // camera.position.y = playerPosition.y + (Math.sin(cameraAngleX) * cameraDistance + 3)
+                const currentCameraYOffset = Math.sin(cameraAngleX) * cameraDistance + 3;
+                const projectedCameraWorldY = playerPosition.y + currentCameraYOffset;
+
+                // Если предполагаемая Y-позиция ниже минимально допустимой, корректируем cameraAngleX.
+                if (projectedCameraWorldY < minCameraY) {
+                    // Вычисляем требуемое значение sin(cameraAngleX) для достижения minCameraY.
+                    const requiredSinAngle = (minCameraY - 3 - playerPosition.y) / cameraDistance;
+                    
+                    // Используем Math.asin для получения угла, но ограничиваем входные данные от -1 до 1,
+                    // чтобы избежать NaN (не число) ошибок.
+                    cameraAngleX = Math.asin(Math.max(-1, Math.min(1, requiredSinAngle)));
+                }
+                
+                // Также ограничиваем просмотр слишком высоко вверх, чтобы избежать инверсии камеры.
+                cameraAngleX = Math.min(Math.PI / 2 - 0.01, cameraAngleX); 
 
                 mouseX = event.clientX;
                 mouseY = event.clientY;
@@ -1038,11 +1293,11 @@
 
         function onWheel(event) {
             cameraDistance += event.deltaY * 0.01;
-            cameraDistance = Math.max(3, Math.min(200, cameraDistance)); // Increased max camera distance for larger world
+            cameraDistance = Math.max(3, Math.min(200, cameraDistance)); // Увеличено максимальное расстояние камеры для большего мира
         }
 
         /**
-         * Toggles between day and night settings with a smooth transition.
+         * Переключает между дневными и ночными настройками с плавным переходом.
          */
         function toggleDayNight() {
             isDayTime = !isDayTime;
@@ -1055,7 +1310,7 @@
         }
 
         /**
-         * Handles window resizing to keep the renderer and camera aspect ratio correct.
+         * Обрабатывает изменение размера окна, чтобы сохранить правильное соотношение сторон рендерера и камеры.
          */
         function onWindowResize() {
             camera.aspect = window.innerWidth / window.innerHeight;
@@ -1064,12 +1319,12 @@
         }
 
         /**
-         * Main animation loop.
+         * Основной цикл анимации.
          */
         function animate() {
             requestAnimationFrame(animate);
 
-            // Smooth day/night transition logic
+            // Логика плавного перехода дня/ночи
             if (transitionProgress !== targetTransitionProgress) {
                 const delta = targetTransitionProgress - transitionProgress;
                 transitionProgress += Math.sign(delta) * transitionSpeed;
@@ -1096,8 +1351,8 @@
                     const dirColorDay = new THREE.Color(daySettings.directionalColor);
                     const dirColorNight = new THREE.Color(nightSettings.directionalColor);
                     directionalLight.color.copy(dirColorNight).lerp(dirColorDay, transitionProgress);
-                    directionalLight.intensity = nightSettings.directionalIntensity + (daySettings.directionalIntensity - nightSettings.directionalIntensity) * transitionProgress;
-                    directionalLight.position.lerpVectors(nightSettings.directionalPosition, daySettings.directionalPosition, transitionProgress);
+                    // Позиция DirectionalLight теперь зафиксирована, она не будет меняться между днем и ночью.
+                    // directionalLight.position.lerpVectors(nightSettings.directionalPosition, daySettings.directionalPosition, transitionProgress);
                 }
                 if (hemisphereLight) {
                     const hemiSkyColorDay = new THREE.Color(daySettings.hemisphereSkyColor);
@@ -1113,6 +1368,11 @@
                 windowLights.forEach(light => {
                     light.intensity = nightSettings.windowLightIntensity + (daySettings.windowLightIntensity - nightSettings.windowLightIntensity) * transitionProgress;
                 });
+
+                // Обновление прозрачности светлячков во время перехода
+                fireflies.forEach(firefly => {
+                    firefly.material.opacity = (1 - transitionProgress) * 0.8; // Максимальная прозрачность ночью
+                });
             }
 
             updatePlayer();
@@ -1126,7 +1386,7 @@
             camera.position.copy(playerPosition).add(cameraOffset);
             camera.lookAt(playerPosition.x, playerPosition.y + 1, playerPosition.z);
 
-            // Animate smoke particles
+            // Анимация частиц дыма
             particles.forEach((particle, idx) => { 
                 particle.position.add(particle.userData.velocity);
                 particle.userData.life += 0.01;
@@ -1144,9 +1404,9 @@
                 particle.material.opacity = 0.6 * (1 - particle.userData.life);
             });
 
-            // Animate fish
-            const lakeCenter = new THREE.Vector3(60, 0.01, 0); // Scaled
-            const fishBoundaryRadius = 36; // Scaled
+            // Анимация рыбы
+            const lakeCenter = new THREE.Vector3(60, 0.01, 0); // Масштабировано
+            const fishBoundaryRadius = 36; // Масштабировано
             fish.forEach(f => {
                 f.position.add(f.userData.velocity);
                 
@@ -1166,33 +1426,61 @@
                 f.rotation.y = Math.atan2(f.userData.velocity.x, f.userData.velocity.z);
             });
 
-            // Animate rabbits (smooth forward/backward movement and bobbing)
+            // Анимация кроликов (плавное движение вперед/назад и покачивание)
             rabbits.forEach(rabbit => {
-                // Calculate new Z position based on sine wave for smooth oscillation
+                // Вычисляем новую Z-позицию на основе синусоиды для плавной осцилляции
                 const newZ = rabbit.userData.initialPosition.z + Math.sin(Date.now() * rabbit.userData.oscillationSpeed + rabbit.userData.oscillationOffset) * rabbit.userData.oscillationAmplitude;
                 
-                // Determine movement direction for rotation
+                // Определяем направление движения для вращения
                 const prevZ = rabbit.position.z;
                 rabbit.position.z = newZ;
 
-                // Rotate rabbit to face the direction of movement
-                // If moving forward (newZ > prevZ), face one way, else face the other
+                // Поворачиваем кролика в направлении движения
+                // Если движется вперед (newZ > prevZ), поворачиваем в одну сторону, иначе в другую
                 if (newZ > prevZ) { 
-                    rabbit.rotation.y = rabbit.userData.initialRotationY; // Use initial rotation for forward
+                    rabbit.rotation.y = rabbit.userData.initialRotationY; // Используем начальное вращение для движения вперед
                 } else { 
-                    rabbit.rotation.y = rabbit.userData.initialRotationY + Math.PI; // Add PI for backward
+                    rabbit.rotation.y = rabbit.userData.initialRotationY + Math.PI; // Добавляем PI для движения назад
                 }
 
-                // Bobbing animation relative to ground (y=0)
+                // Анимация покачивания относительно земли (y=0)
                 rabbit.position.y = Math.sin(Date.now() * 0.005 + rabbit.userData.offset) * 0.05; 
             });
 
-            // Animate clouds
+            // Анимация облаков
             clouds.forEach(cloud => {
                 cloud.position.x += cloud.userData.speed;
-                // Wrap clouds around the world
+                // Заворачиваем облака вокруг мира
                 if (cloud.position.x > 100) cloud.position.x = -100;
                 if (cloud.position.x < -100) cloud.position.x = 100;
+            });
+
+            // Анимация птицы
+            if (bird) {
+                bird.userData.flightAngle += bird.userData.flightSpeed;
+                bird.position.x = bird.userData.flightRadius * Math.cos(bird.userData.flightAngle);
+                bird.position.z = bird.userData.flightRadius * Math.sin(bird.userData.flightAngle);
+                bird.rotation.y = -bird.userData.flightAngle + Math.PI / 2; // Поворачиваем птицу по направлению полета
+
+                // Анимация маха крыльями
+                const wingAngle = Math.sin(Date.now() * bird.userData.wingFlapSpeed) * bird.userData.wingFlapAmplitude;
+                if (bird.userData.leftWing) bird.userData.leftWing.rotation.x = Math.PI / 4 + wingAngle;
+                if (bird.userData.rightWing) bird.userData.rightWing.x = -Math.PI / 4 - wingAngle;
+            }
+
+            // Анимация светлячков
+            fireflies.forEach(firefly => {
+                // Плавное движение
+                firefly.position.x = firefly.userData.initialPosition.x + Math.sin(Date.now() * firefly.userData.speed + firefly.userData.offset) * 0.5;
+                firefly.position.y = firefly.userData.initialPosition.y + Math.cos(Date.now() * firefly.userData.speed * 0.8 + firefly.userData.offset) * 0.3;
+                firefly.position.z = firefly.userData.initialPosition.z + Math.sin(Date.now() * firefly.userData.speed * 1.2 + firefly.userData.offset) * 0.5;
+
+                // Мерцание (только ночью)
+                if (!isDayTime) {
+                    firefly.material.opacity = 0.5 + Math.sin(Date.now() * 0.01 + firefly.userData.offset) * 0.5;
+                } else {
+                    firefly.material.opacity = 0; // Светлячки невидимы днем
+                }
             });
 
 
@@ -1202,7 +1490,7 @@
         }
 
         /**
-         * Updates player position and rotation based on keyboard input and camera direction.
+         * Обновляет позицию и вращение игрока на основе ввода с клавиатуры и направления камеры.
          */
         function updatePlayer() {
             let isMoving = false;
@@ -1211,16 +1499,16 @@
             const cameraDirection = new THREE.Vector3();
             camera.getWorldDirection(cameraDirection); 
 
-            // Ensure horizontal movement only
+            // Обеспечиваем только горизонтальное движение
             cameraDirection.y = 0;
             cameraDirection.normalize();
 
             const cameraRight = new THREE.Vector3();
-            // Cross product of camera's up vector and forward vector gives right vector
+            // Векторное произведение вектора "вверх" камеры и вектора "вперед" дает вектор "вправо"
             cameraRight.crossVectors(camera.up, cameraDirection); 
             cameraRight.normalize();
 
-            // Calculate movement based on pressed keys and camera orientation
+            // Вычисляем движение на основе нажатых клавиш и ориентации камеры
             if (keys['KeyW'] || keys['ArrowUp']) {
                 moveDirection.add(cameraDirection);
                 isMoving = true;
@@ -1230,11 +1518,11 @@
                 isMoving = true;
             }
             if (keys['KeyA'] || keys['ArrowLeft']) {
-                moveDirection.add(cameraRight); // Move right relative to camera
+                moveDirection.add(cameraRight); // Движение вправо относительно камеры
                 isMoving = true;
             }
             if (keys['KeyD'] || keys['ArrowRight']) {
-                moveDirection.sub(cameraRight); // Move left relative to camera
+                moveDirection.sub(cameraRight); // Движение влево относительно камеры
                 isMoving = true;
             }
 
@@ -1242,7 +1530,7 @@
                 moveDirection.normalize().multiplyScalar(speed);
                 playerPosition.add(moveDirection);
 
-                // Update player rotation to face movement direction
+                // Обновляем вращение игрока, чтобы он смотрел в направлении движения
                 if (Math.abs(moveDirection.x) > 0.0001 || Math.abs(moveDirection.z) > 0.0001) {
                     player.rotation.y = Math.atan2(moveDirection.x, moveDirection.z);
                 }
@@ -1259,18 +1547,18 @@
                 }
             }
 
-            // Clamp player position within scene boundaries
-            playerPosition.x = Math.max(-90, Math.min(90, playerPosition.x)); // Doubled boundaries
-            playerPosition.z = Math.max(-90, Math.min(90, playerPosition.z)); // Doubled boundaries
+            // Ограничиваем позицию игрока в пределах границ сцены
+            playerPosition.x = Math.max(-90, Math.min(90, playerPosition.x)); // Удвоенные границы
+            playerPosition.z = Math.max(-90, Math.min(90, playerPosition.z)); // Удвоенные границы
 
             player.position.copy(playerPosition);
         }
 
-        // --- Initialization Function ---
-        // This function is called once when the window finishes loading.
+        // --- Функция инициализации ---
+        // Эта функция вызывается один раз, когда окно полностью загрузится.
         function init() {
             scene = new THREE.Scene();
-            scene.fog = new THREE.Fog(daySettings.fogColor, 20, 200); // Adjusted fog: near 20, far 200
+            scene.fog = new THREE.Fog(daySettings.fogColor, 20, 200); // Скорректированный туман: ближний 20, дальний 200
 
             camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 
@@ -1281,37 +1569,42 @@
             renderer.shadowMap.type = THREE.PCFSoftShadowMap; 
             document.getElementById('container').appendChild(renderer.domElement);
 
-            // Create all scene elements
+            // Создаем все элементы сцены
             createHouse();
             createPlayer();
             createGround();
-            createTrees();  
-            createLake();  
+            createTrees();  
+            createLake();   
             createSmokeParticles();
             createLakeVegetation(); 
             createPierAndBoat(); 
             createFence(); 
             createRabbits(); 
-            createRocks(); // Add rocks
-            createClouds(); // Add clouds
-            createMailbox(); // Add mailbox
+            createRocks(); // Добавляем камни
+            createClouds(); // Добавляем облака
+            createMailbox(); // Добавляем почтовый ящик
+            createPath(); // Добавляем дорожку
+            createBench(); // Добавляем скамейку
+            createLilyPads(); // Добавляем кувшинки
+            createBird(); // Добавляем птицу
+            createFireflies(); // Добавляем светлячков
             
-            // Setup lighting and controls
+            // Настраиваем освещение и элементы управления
             setupLighting(); 
             setupControls();
 
-            // Initial day/night state
+            // Начальное состояние дня/ночи
             targetTransitionProgress = isDayTime ? 1 : 0;
             const button = document.getElementById('toggleDayNightButton');
             if (button) {
                 button.textContent = isDayTime ? '☀️' : '🌙';
             }
 
-            // Start the animation loop
+            // Запускаем цикл анимации
             animate();
         }
 
-        // Ensure init is called after the entire window (including all scripts) has loaded
+        // Убедитесь, что init вызывается после полной загрузки окна (включая все скрипты)
         window.onload = function() {
             init();
         }; 
