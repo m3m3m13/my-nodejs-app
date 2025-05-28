@@ -105,6 +105,21 @@
         #toggleDayNightButton:hover {
             background-color: #45a049;
         }
+
+        #game-ui {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 100;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 15px;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            color: #333;
+            font-size: 16px;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
@@ -115,10 +130,15 @@
             <p>🔄 Колесо: приближение</p>
             <p>🚶 <span class="key">WASD</span> или <span class="key">↑↓←→</span>: движение</p>
             <p>🏃 <span class="key">Shift</span>: бег</p>
+            <p>🪵 <span class="key">E</span>: Взаимодействие (взять/положить бревно)</p>
         </div>
 
         <div id="info">
             <button id="toggleDayNightButton">☀️</button> 
+        </div>
+
+        <div id="game-ui">
+            Бревна собраны: <span id="collectedLogsCount">0</span>
         </div>
     </div>
 
@@ -139,6 +159,14 @@
         let clouds = []; // Массив для объектов облаков
         let fireflies = []; // Массив для объектов светлячков
         let bird; // Объект птицы
+
+        // Игровые переменные
+        let playerHasLog = false;
+        let currentHeldLog = null;
+        let collectedLogsCount = 0;
+        let logPileGroup = null; // Группа для динамически добавляемых бревен
+        const interactDistance = 3; // Расстояние для взаимодействия (подбора/выгрузки)
+        let collectibleTrees = []; // Массив для всех собираемых деревьев (лиственных и хвойных)
 
         let transitionProgress = 1; 
         let transitionSpeed = 0.02; 
@@ -396,6 +424,11 @@
             player.add(rightLeg);
             player.userData.rightLeg = rightLeg; 
 
+            // Точка крепления для бревна в руке игрока
+            player.userData.hand = new THREE.Group();
+            player.userData.hand.position.set(0.4, 1.0, 0.3); // Примерное положение в руке
+            player.add(player.userData.hand);
+
             player.position.copy(playerPosition); 
             scene.add(player);
         }
@@ -410,6 +443,20 @@
             ground.rotation.x = -Math.PI / 2;
             ground.receiveShadow = true;
             scene.add(ground);
+        }
+
+        /**
+         * Создает пенек, который появляется после сбора всех бревен с дерева.
+         * @returns {THREE.Mesh} Меш пенька.
+         */
+        function createStump() {
+            const stumpGeometry = new THREE.CylinderGeometry(0.3, 0.4, 0.5, 8); // Шире и короче ствола
+            const stumpMaterial = new THREE.MeshStandardMaterial({ color: 0x5C4033, roughness: 0.8 }); // Темно-коричневый
+            const stump = new THREE.Mesh(stumpGeometry, stumpMaterial);
+            stump.position.y = 0.25; // Половина высоты пенька
+            stump.castShadow = true;
+            stump.receiveShadow = true;
+            return stump;
         }
 
         /**
@@ -496,7 +543,10 @@
                 tree.position.x = treeX; 
                 tree.position.z = treeZ; 
                 tree.scale.setScalar(0.7 + Math.random() * 0.6); 
-
+                tree.userData.isCollectible = true; // Помечаем, что это дерево, с которого можно взять бревно
+                tree.userData.logsRemaining = 10; // Изначально имеет 10 бревен
+                tree.userData.originalFoliage = tree.children.filter(c => c.isMesh && c.geometry.type === 'SphereGeometry'); // Сохраняем ссылки на листву
+                collectibleTrees.push(tree); // Добавляем в массив собираемых деревьев
                 scene.add(tree);
             }
 
@@ -566,7 +616,10 @@
                 firTree.position.x = treeX; 
                 firTree.position.z = treeZ; 
                 firTree.scale.setScalar(0.8 + Math.random() * 0.7); 
-
+                firTree.userData.isCollectible = true; // Помечаем, что это дерево, с которого можно взять бревно
+                firTree.userData.logsRemaining = 10; // Изначально имеет 10 бревен
+                firTree.userData.originalFoliage = firTree.children.filter(c => c.isMesh && c.geometry.type.includes('ConeGeometry')); // Сохраняем ссылки на листву
+                collectibleTrees.push(firTree); // Добавляем в массив собираемых деревьев
                 scene.add(firTree);
             }
         }
@@ -1266,32 +1319,54 @@
          * @param {THREE.Group} barn - Объект сарайчика, рядом с которым будет размещена поленница.
          */
         function createFirewoodPile(barn) {
-            const firewoodPile = new THREE.Group();
-            const logMaterial = new THREE.MeshStandardMaterial({ color: 0x654321, roughness: 0.8 }); // Коричневый цвет полена
-
-            const logGeometry = new THREE.CylinderGeometry(0.15, 0.15, 1.0, 8); // Небольшое полено
-            const numLogsPerLayer = 8; // Увеличено количество поленьев в одном ряду
-            const numLayers = 5; // Увеличено количество слоев для большей поленницы
-
-            for (let layer = 0; layer < numLayers; layer++) {
-                for (let i = 0; i < numLogsPerLayer; i++) {
-                    const log = new THREE.Mesh(logGeometry, logMaterial);
-                    log.rotation.z = Math.PI / 2; // Поворачиваем, чтобы они лежали горизонтально
-                    log.position.set(
-                        (i * 0.3) - (numLogsPerLayer * 0.3 / 2) + 0.15, // Центрируем поленницу
-                        (layer * 0.3) + 0.15, // Смещение по Y для слоев
-                        0 // Z-позиция
-                    );
-                    log.castShadow = true;
-                    log.receiveShadow = true;
-                    firewoodPile.add(log);
-                }
-            }
-
+            logPileGroup = new THREE.Group(); // Инициализируем глобальную группу для поленницы
+            // Изначально поленница пуста, бревна будут добавляться динамически
+            
             // Размещаем поленницу рядом с сарайчиком
-            firewoodPile.position.set(barn.position.x + 3.5, 0, barn.position.z + 0.5); // Смещение относительно сарайчика
-            firewoodPile.rotation.y = Math.PI / 6; // Немного поворачиваем
-            scene.add(firewoodPile);
+            logPileGroup.position.set(barn.position.x + 3.5, 0, barn.position.z + 0.5); // Смещение относительно сарайчика
+            logPileGroup.rotation.y = Math.PI / 6; // Немного поворачиваем
+            scene.add(logPileGroup);
+        }
+
+        /**
+         * Создает одно бревно, которое может быть подобрано игроком.
+         * @returns {THREE.Mesh} Меш бревна.
+         */
+        function createCollectibleLog() {
+            const logGeometry = new THREE.CylinderGeometry(0.15, 0.15, 1.0, 8);
+            const logMaterial = new THREE.MeshStandardMaterial({ color: 0x654321, roughness: 0.8 });
+            const log = new THREE.Mesh(logGeometry, logMaterial);
+            log.rotation.z = Math.PI / 2; // Горизонтально
+            log.castShadow = true;
+            log.receiveShadow = true;
+            return log;
+        }
+
+        /**
+         * Добавляет бревно к поленнице.
+         * @param {THREE.Mesh} logMesh - Меш бревна, которое нужно добавить.
+         */
+        function addLogToPile(logMesh) {
+            if (!logPileGroup) return;
+
+            // Вычисляем позицию для нового бревна в поленнице
+            const currentLogs = collectedLogsCount; // Используем collectedLogsCount для определения позиции
+            const logsPerRow = 8; 
+            const logHeight = 0.3; 
+
+            const row = Math.floor(currentLogs / logsPerRow);
+            const col = currentLogs % logsPerRow;
+
+            // Корректируем X-позицию, чтобы бревна складывались аккуратно
+            const xOffset = (col * 0.3) - (logsPerRow * 0.3 / 2) + 0.15; 
+            const yOffset = (row * logHeight) + 0.15; 
+            const zOffset = (Math.random() - 0.5) * 0.1; // Небольшое случайное смещение по Z
+
+            logMesh.position.set(xOffset, yOffset, zOffset);
+            logMesh.rotation.z = Math.PI / 2; // Горизонтально
+            logMesh.rotation.y = (Math.random() - 0.5) * 0.2; // Небольшой случайный поворот
+
+            logPileGroup.add(logMesh);
         }
 
 
@@ -1348,6 +1423,10 @@
 
         function onKeyDown(event) {
             keys[event.code] = true;
+            if (event.code === 'KeyE') { // Клавиша E для взаимодействия
+                console.log("Клавиша 'E' нажата.");
+                handleInteraction();
+            }
         }
 
         function onKeyUp(event) {
@@ -1403,6 +1482,72 @@
         function onWheel(event) {
             cameraDistance += event.deltaY * 0.01;
             cameraDistance = Math.max(3, Math.min(200, cameraDistance)); // Увеличено максимальное расстояние камеры для большего мира
+        }
+
+        /**
+         * Обрабатывает взаимодействие игрока (подбор/выгрузка бревна).
+         */
+        function handleInteraction() {
+            if (playerHasLog) {
+                // Игрок держит бревно, пытается выгрузить его у сарайчика
+                const distanceToBarn = playerPosition.distanceTo(logPileGroup.position);
+                console.log('Игрок держит бревно. Расстояние до сарайчика (для выгрузки): ' + distanceToBarn.toFixed(2));
+                if (distanceToBarn < interactDistance + 2) { // Немного больший радиус для выгрузки
+                    player.userData.hand.remove(currentHeldLog); // Удаляем бревно из руки
+                    
+                    // Добавляем бревно к поленнице визуально
+                    addLogToPile(currentHeldLog); 
+                    
+                    currentHeldLog = null;
+                    playerHasLog = false;
+                    collectedLogsCount++;
+                    document.getElementById('collectedLogsCount').textContent = collectedLogsCount;
+                    console.log('Бревно выгружено! Всего собрано: ' + collectedLogsCount);
+                } else {
+                    console.log('Вы слишком далеко от сарайчика, чтобы выгрузить бревно. Подойдите ближе.');
+                }
+            } else {
+                // Игрок не держит бревно, пытается подобрать его у дерева
+                let pickedUp = false;
+                for (let i = 0; i < collectibleTrees.length; i++) {
+                    const tree = collectibleTrees[i];
+                    // Проверяем, является ли дерево собираемым и есть ли на нем бревна
+                    if (tree.userData.isCollectible && tree.userData.logsRemaining > 0) {
+                        const distanceToTree = playerPosition.distanceTo(tree.position);
+                        console.log('Расстояние до дерева (для подбора): ' + distanceToTree.toFixed(2) + '. Бревна остались: ' + tree.userData.logsRemaining);
+                        if (distanceToTree < interactDistance) {
+                            currentHeldLog = createCollectibleLog();
+                            player.userData.hand.add(currentHeldLog); // Добавляем бревно в руку игрока
+                            playerHasLog = true;
+                            tree.userData.logsRemaining--; // Уменьшаем количество бревен на дереве
+                            console.log('Бревно подобрано! Бревна остались на дереве: ' + tree.userData.logsRemaining);
+
+                            if (tree.userData.logsRemaining === 0) {
+                                console.log('Дерево превращается в пенек!');
+                                // Удаляем листву
+                                tree.userData.originalFoliage.forEach(foliagePart => {
+                                    tree.remove(foliagePart);
+                                });
+                                // Добавляем пенек
+                                const stump = createStump();
+                                tree.add(stump);
+                                // Чтобы избежать повторного взаимодействия с пеньком как с деревом
+                                tree.userData.isCollectible = false; 
+                            }
+                            pickedUp = true;
+                            break; // Подбираем только одно бревно за раз
+                        }
+                    } else if (tree.userData.isCollectible && tree.userData.logsRemaining === 0) {
+                        const distanceToTree = playerPosition.distanceTo(tree.position);
+                        if (distanceToTree < interactDistance) {
+                            console.log('Это дерево уже превратилось в пенек. Больше бревен нет.');
+                        }
+                    }
+                }
+                if (!pickedUp) {
+                    console.log('Нет бревен для подбора поблизости или вы слишком далеко. Подойдите к дереву.');
+                }
+            }
         }
 
         /**
@@ -1574,7 +1719,7 @@
                 // Анимация маха крыльями
                 const wingAngle = Math.sin(Date.now() * bird.userData.wingFlapSpeed) * bird.userData.wingFlapAmplitude;
                 if (bird.userData.leftWing) bird.userData.leftWing.rotation.x = Math.PI / 4 + wingAngle;
-                if (bird.userData.rightWing) bird.userData.rightWing.rotation.x = -Math.PI / 4 - wingAngle; // Исправлено: rotation.x вместо x
+                if (bird.userData.rightWing) bird.userData.rightWing.rotation.x = -Math.PI / 4 - wingAngle; 
             }
 
             // Анимация светлячков
@@ -1682,7 +1827,7 @@
             createHouse();
             createPlayer();
             createGround();
-            createTrees();  
+            createTrees();  // Теперь эта функция создает все лиственные и еловые деревья как собираемые
             createLake();   
             createSmokeParticles();
             createLakeVegetation(); 
