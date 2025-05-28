@@ -215,7 +215,7 @@
 
         let transitionProgress = 1; // 1 = день, 0 = ночь
         const transitionSpeed = 0.02; // Скорость перехода
-        const dayNightCycleDuration = 20 * 60 * 1000; // 20 минут в миллисекундах
+        const dayNightCycleDuration = 20 * 60 * 1000; // 20 минут в миллисесекундах
         const halfDayNightCycle = dayNightCycleDuration / 2; // 10 минут
 
         let isSliderDragging = false; // Флаг для отслеживания перетаскивания ползунка
@@ -667,7 +667,7 @@
 
                     // Проверяем, не слишком ли дерево близко к каменоломне
                     const isNearQuarry = (treeX >= quarryMinX - quarryBuffer && treeX <= quarryMaxX + quarryBuffer &&
-                                          treeZ >= quarryMinZ - quarryBuffer && treeZ <= quarryMaxZ + quarryBuffer);
+                                           treeZ >= quarryMinZ - quarryBuffer && treeZ <= quarryMaxZ + quarryBuffer);
 
 
                     if (!isNearHouse && !isNearLake && !isNearBarn && !isNearQuarry) {
@@ -856,11 +856,13 @@
                 const leg1 = new THREE.Mesh(pierLegGeometry, pierMaterial);
                 leg1.position.set(pierBase.position.x - 0.5, -0.4, pierBase.position.z - 1.5 + i * 1.5);
                 leg1.castShadow = true;
+                leg1.receiveShadow = true;
                 scene.add(leg1);
 
                 const leg2 = new THREE.Mesh(pierLegGeometry, pierMaterial);
                 leg2.position.set(pierBase.position.x + 0.5, -0.4, pierBase.position.z - 1.5 + i * 1.5);
                 leg2.castShadow = true;
+                leg2.receiveShadow = true;
                 scene.add(leg2);
             }
 
@@ -987,7 +989,7 @@
 
                     // Проверяем, не слишком ли кролик близко к каменоломне
                     const isNearQuarry = (rabbitX >= quarryMinX - quarryBuffer && rabbitX <= quarryMaxX + quarryBuffer &&
-                                          rabbitZ >= quarryMinZ - quarryBuffer && rabbitZ <= quarryMaxZ + quarryBuffer);
+                                           rabbitZ >= quarryMinZ - quarryBuffer && rabbitZ <= quarryMaxZ + quarryBuffer);
 
 
                     if (!isNearHouse && !isNearLake && !isNearBarn && !isNearQuarry) {
@@ -1125,7 +1127,7 @@
                                          rockZ >= barnMinZ - barnBuffer && rockZ <= barnMaxZ + barnBuffer);
 
                     const isNearQuarry = (rockX >= quarryMinX - quarryBuffer && rockX <= quarryMaxX + quarryBuffer &&
-                                          rockZ >= quarryMinZ - quarryBuffer && rockZ <= quarryMaxZ + quarryBuffer);
+                                           rockZ >= quarryMinZ - quarryBuffer && rockZ <= quarryMaxZ + quarryBuffer);
                     
                     const isNearForest = (rockX >= forestMinX - forestBuffer && rockX <= forestMaxX + forestBuffer &&
                                           rockZ >= forestMinZ - forestBuffer && rockZ <= forestMaxZ + forestBuffer);
@@ -1338,6 +1340,7 @@
             const bodyGeometry = new THREE.SphereGeometry(0.3, 12, 12);
             const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
             body.scale.z = 2; // Вытянутое тело
+            body.castShadow = true;
             bird.add(body);
 
             // Крылья
@@ -1348,6 +1351,7 @@
             leftWing.position.set(-0.2, 0, 0);
             leftWing.rotation.y = Math.PI / 2;
             leftWing.rotation.x = Math.PI / 4; // Начальный угол крыла
+            leftWing.castShadow = true;
             bird.add(leftWing);
             bird.userData.leftWing = leftWing; // Сохраняем ссылку для анимации
 
@@ -1355,6 +1359,7 @@
             rightWing.position.set(0.2, 0, 0);
             rightWing.rotation.y = -Math.PI / 2;
             rightWing.rotation.x = -Math.PI / 4; // Начальный угол крыла
+            rightWing.castShadow = true;
             bird.add(rightWing);
             bird.userData.rightWing = rightWing; // Сохраняем ссылку для анимации
 
@@ -1554,15 +1559,23 @@
 
             const buttress1 = new THREE.Mesh(buttressGeometry, buttressMaterial);
             buttress1.position.set(3.0, 2, 2.0); // Передний правый
+            buttress1.castShadow = true;
+            buttress1.receiveShadow = true;
             quarryHouse.add(buttress1);
             const buttress2 = new THREE.Mesh(buttressGeometry, buttressMaterial);
             buttress2.position.set(-3.0, 2, 2.0); // Передний левый
+            buttress2.castShadow = true;
+            buttress2.receiveShadow = true;
             quarryHouse.add(buttress2);
             const buttress3 = new THREE.Mesh(buttressGeometry, buttressMaterial);
             buttress3.position.set(3.0, 2, -2.0); // Задний правый
+            buttress3.castShadow = true;
+            buttress3.receiveShadow = true;
             quarryHouse.add(buttress3);
             const buttress4 = new THREE.Mesh(buttressGeometry, buttressMaterial);
             buttress4.position.set(-3.0, 2, -2.0); // Задний левый
+            buttress4.castShadow = true;
+            buttress4.receiveShadow = true;
             quarryHouse.add(buttress4);
 
 
@@ -2120,11 +2133,13 @@
             leftEar.position.set(0.95, 1.7, 0.15); // Подняли уши
             leftEar.rotation.y = Math.PI / 4;
             leftEar.rotation.x = -Math.PI / 8;
+            leftEar.castShadow = true;
             deerGroup.add(leftEar);
             const rightEar = new THREE.Mesh(earGeometry, earMaterial);
             rightEar.position.set(0.95, 1.7, -0.15); // Подняли уши
             rightEar.rotation.y = -Math.PI / 4;
             rightEar.rotation.x = -Math.PI / 8;
+            rightEar.castShadow = true;
             deerGroup.add(rightEar);
 
             // Рога (простые цилиндры)
@@ -2135,21 +2150,25 @@
             const leftAntlerBase = new THREE.Mesh(antlerBaseGeometry, antlerMaterial);
             leftAntlerBase.position.set(0.9, 1.8, 0.1); // Подняли рога
             leftAntlerBase.rotation.z = Math.PI / 6;
+            leftAntlerBase.castShadow = true;
             deerGroup.add(leftAntlerBase);
 
             const leftAntlerBranch1 = new THREE.Mesh(antlerBranchGeometry, antlerMaterial);
             leftAntlerBranch1.position.set(0.9 + 0.1, 1.8 + 0.2, 0.1 + 0.05); // Подняли ветви рогов
             leftAntlerBranch1.rotation.z = Math.PI / 3;
+            leftAntlerBranch1.castShadow = true;
             deerGroup.add(leftAntlerBranch1);
 
             const rightAntlerBase = new THREE.Mesh(antlerBaseGeometry, antlerMaterial);
             rightAntlerBase.position.set(0.9, 1.8, -0.1); // Подняли рога
             rightAntlerBase.rotation.z = Math.PI / 6;
+            rightAntlerBase.castShadow = true;
             deerGroup.add(rightAntlerBase);
 
             const rightAntlerBranch1 = new THREE.Mesh(antlerBranchGeometry, antlerMaterial);
             rightAntlerBranch1.position.set(0.9 + 0.1, 1.8 + 0.2, -0.1 - 0.05);
             rightAntlerBranch1.rotation.z = Math.PI / 3;
+            rightAntlerBranch1.castShadow = true;
             deerGroup.add(rightAntlerBranch1);
 
 
@@ -2226,6 +2245,8 @@
                 const stemHeight = 0.2 + Math.random() * 0.2;
                 const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, stemHeight, 4), stemMaterial);
                 stem.position.y = stemHeight / 2;
+                stem.castShadow = true;
+                stem.receiveShadow = true;
                 flowerGroup.add(stem);
 
                 // Случайный цвет для лепестков
@@ -2243,12 +2264,14 @@
                         stemHeight + 0.05,
                         Math.sin(angle) * 0.1
                     );
+                    petal.castShadow = true;
                     flowerGroup.add(petal);
                 }
 
                 // Центр цветка
                 const center = new THREE.Mesh(centerGeometry, centerMaterial);
                 center.position.y = stemHeight + 0.05;
+                center.castShadow = true;
                 flowerGroup.add(center);
 
                 flowerGroup.position.set(flowerX, 0, flowerZ);
@@ -2274,6 +2297,8 @@
             const seatGeometry = new THREE.BoxGeometry(1.5, 0.05, 0.6);
             const seat = new THREE.Mesh(seatGeometry, fabricMaterial);
             seat.position.y = 0.2;
+            seat.castShadow = true;
+            seat.receiveShadow = true;
             loungerGroup.add(seat);
 
             // Спинка (поднятая)
@@ -2281,21 +2306,31 @@
             const back = new THREE.Mesh(backGeometry, fabricMaterial);
             back.position.set(-0.45, 0.35, 0);
             back.rotation.x = Math.PI / 4; // Наклон спинки
+            back.castShadow = true;
+            back.receiveShadow = true;
             loungerGroup.add(back);
 
             // Ножки
             const legGeometry = new THREE.BoxGeometry(0.05, 0.2, 0.05);
             const leg1 = new THREE.Mesh(legGeometry, woodMaterial);
             leg1.position.set(0.6, 0.1, 0.25);
+            leg1.castShadow = true;
+            leg1.receiveShadow = true;
             loungerGroup.add(leg1);
             const leg2 = new THREE.Mesh(legGeometry, woodMaterial);
             leg2.position.set(0.6, 0.1, -0.25);
+            leg2.castShadow = true;
+            leg2.receiveShadow = true;
             loungerGroup.add(leg2);
             const leg3 = new THREE.Mesh(legGeometry, woodMaterial);
             leg3.position.set(-0.6, 0.1, 0.25);
+            leg3.castShadow = true;
+            leg3.receiveShadow = true;
             loungerGroup.add(leg3);
             const leg4 = new THREE.Mesh(legGeometry, woodMaterial);
             leg4.position.set(-0.6, 0.1, -0.25);
+            leg4.castShadow = true;
+            leg4.receiveShadow = true;
             loungerGroup.add(leg4);
 
             loungerGroup.position.set(x, y, z);
@@ -2319,12 +2354,16 @@
             const poleGeometry = new THREE.CylinderGeometry(0.05, 0.05, 2.0, 8);
             const pole = new THREE.Mesh(poleGeometry, poleMaterial);
             pole.position.y = 1.0;
+            pole.castShadow = true;
+            pole.receiveShadow = true;
             umbrellaGroup.add(pole);
 
             // Купол зонтика (конус)
             const canopyGeometry = new THREE.ConeGeometry(1.0, 0.5, 16); // Широкий, плоский конус
             const canopy = new THREE.Mesh(canopyGeometry, canopyMaterial);
             canopy.position.y = 2.0;
+            canopy.castShadow = true;
+            canopy.receiveShadow = true;
             umbrellaGroup.add(canopy);
 
             umbrellaGroup.position.set(x, y, z);
@@ -2364,12 +2403,16 @@
                 const stemHeight = 0.2 + Math.random() * 0.1;
                 const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.08, stemHeight, 8), mushroomStemMaterial);
                 stem.position.y = stemHeight / 2;
+                stem.castShadow = true;
+                stem.receiveShadow = true;
                 mushroomGroup.add(stem);
 
                 // Шляпка
                 const capRadius = 0.15 + Math.random() * 0.1;
                 const cap = new THREE.Mesh(new THREE.SphereGeometry(capRadius, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), mushroomCapMaterial);
                 cap.position.y = stemHeight + capRadius / 2 - 0.02; // Немного перекрывает ножку
+                cap.castShadow = true;
+                cap.receiveShadow = true;
                 mushroomGroup.add(cap);
 
                 mushroomGroup.position.set(mushroomX, 0, mushroomZ);
@@ -2466,21 +2509,31 @@
             const postGeometry = new THREE.CylinderGeometry(0.15, 0.15, 3.0, 8);
             const post1 = new THREE.Mesh(postGeometry, woodMaterial);
             post1.position.set(-2, 1.5, -1.5);
+            post1.castShadow = true;
+            post1.receiveShadow = true;
             shelterGroup.add(post1);
             const post2 = new THREE.Mesh(postGeometry, woodMaterial);
             post2.position.set(2, 1.5, -1.5);
+            post2.castShadow = true;
+            post2.receiveShadow = true;
             shelterGroup.add(post2);
             const post3 = new THREE.Mesh(postGeometry, woodMaterial);
             post3.position.set(-2, 1.5, 1.5);
+            post3.castShadow = true;
+            post3.receiveShadow = true;
             shelterGroup.add(post3);
             const post4 = new THREE.Mesh(postGeometry, woodMaterial);
             post4.position.set(2, 1.5, 1.5);
+            post4.castShadow = true;
+            post4.receiveShadow = true;
             shelterGroup.add(post4);
 
             // Крыша (плоская)
             const roofGeometry = new THREE.BoxGeometry(5, 0.2, 4);
             const roof = new THREE.Mesh(roofGeometry, roofMaterial);
             roof.position.y = 3.0 + 0.1; // Над столбами
+            roof.castShadow = true;
+            roof.receiveShadow = true;
             shelterGroup.add(roof);
 
             shelterGroup.position.copy(position);
