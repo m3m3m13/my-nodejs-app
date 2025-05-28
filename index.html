@@ -431,6 +431,13 @@
             const lakeRadius = 30; // Удвоено
             const lakeBuffer = 6; // Удвоенная буферная зона
 
+            // Определяем ограничивающий прямоугольник сарайчика для обнаружения столкновений
+            const barnMinX = -40 - 2; // Позиция сарайчика -2.5, размер 5
+            const barnMaxX = -40 + 2;
+            const barnMinZ = 40 - 2;
+            const barnMaxZ = 40 + 2;
+            const barnBuffer = 3; // Буферная зона вокруг сарайчика
+
             // Лиственные деревья
             const deciduousTrunkMaterial = new THREE.MeshStandardMaterial({ color: 0x8B4513, roughness: 0.8 });
             const deciduousFoliageMaterial = new THREE.MeshStandardMaterial({ color: 0x228B22, roughness: 0.7 });
@@ -440,7 +447,7 @@
                 let treeX, treeZ;
                 let isValidPosition = false;
 
-                // Продолжаем генерировать случайные позиции, пока она не окажется за пределами дома и озера
+                // Продолжаем генерировать случайные позиции, пока она не окажется за пределами дома, озера и сарайчика
                 while (!isValidPosition) {
                     treeX = -90 + Math.random() * 180; // Удвоенный диапазон
                     treeZ = -90 + Math.random() * 180; // Удвоенный диапазон
@@ -456,7 +463,11 @@
                     );
                     const isNearLake = distanceToLakeCenter < (lakeRadius + lakeBuffer);
 
-                    if (!isNearHouse && !isNearLake) {
+                    // Проверяем, не слишком ли дерево близко к сарайчику
+                    const isNearBarn = (treeX >= barnMinX - barnBuffer && treeX <= barnMaxX + barnBuffer &&
+                                        treeZ >= barnMinZ - barnBuffer && treeZ <= barnMaxZ + barnBuffer);
+
+                    if (!isNearHouse && !isNearLake && !isNearBarn) {
                         isValidPosition = true;
                     }
                 }
@@ -472,7 +483,7 @@
                 const numFoliageSpheres = 3 + Math.floor(Math.random() * 3); // 3-5 сфер
                 for (let j = 0; j < numFoliageSpheres; j++) {
                     const foliageGeometry = new THREE.SphereGeometry(0.8 + Math.random() * 0.4, 16, 16); // Варьирующиеся размеры
-                    const foliage = new THREE.Mesh(foliageGeometry, deciduousFoliageMaterial); // Исправлено: foliageGeometry вместо foliometry
+                    const foliage = new THREE.Mesh(foliageGeometry, deciduousFoliageMaterial); 
                     foliage.position.set(
                         (Math.random() - 0.5) * 1.5, // Небольшой разброс по X
                         2.5 + (Math.random() - 0.5) * 0.5, // Небольшой разброс по Y
@@ -498,7 +509,7 @@
                 let treeX, treeZ;
                 let isValidPosition = false;
 
-                // Продолжаем генерировать случайные позиции, пока она не окажется за пределами дома и озера
+                // Продолжаем генерировать случайные позиции, пока она не окажется за пределами дома, озера и сарайчика
                 while (!isValidPosition) {
                     treeX = -90 + Math.random() * 180; // Удвоенный диапазон
                     treeZ = -90 + Math.random() * 180; // Удвоенный диапазон
@@ -514,7 +525,11 @@
                     );
                     const isNearLake = distanceToLakeCenter < (lakeRadius + lakeBuffer);
 
-                    if (!isNearHouse && !isNearLake) {
+                    // Проверяем, не слишком ли дерево близко к сарайчику
+                    const isNearBarn = (treeX >= barnMinX - barnBuffer && treeX <= barnMaxX + barnBuffer &&
+                                        treeZ >= barnMinZ - barnBuffer && treeZ <= barnMaxZ + barnBuffer);
+
+                    if (!isNearHouse && !isNearLake && !isNearBarn) {
                         isValidPosition = true;
                     }
                 }
@@ -788,6 +803,13 @@
             const lakeRadius = 30; // Масштабировано
             const exclusionBuffer = 4; // Скорректированная буферная зона
 
+            // Определяем ограничивающий прямоугольник сарайчика для обнаружения столкновений
+            const barnMinX = -40 - 2; // Позиция сарайчика -2.5, размер 5
+            const barnMaxX = -40 + 2;
+            const barnMinZ = 40 - 2;
+            const barnMaxZ = 40 + 2;
+            const barnBuffer = 3; // Буферная зона вокруг сарайчика
+
             // Свойства движения для кроликов (плавная осцилляция)
             const rabbitOscillationSpeed = 0.001; // Более низкая скорость для осцилляции
             const rabbitOscillationAmplitude = 5; // Увеличена амплитуда для более заметного движения
@@ -812,7 +834,11 @@
                     );
                     const isNearLake = distanceToLakeCenter < (lakeRadius + exclusionBuffer);
 
-                    if (!isNearHouse && !isNearLake) {
+                    // Проверяем, не слишком ли кролик близко к сарайчику
+                    const isNearBarn = (rabbitX >= barnMinX - barnBuffer && rabbitX <= barnMaxX + barnBuffer &&
+                                        rabbitZ >= barnMinZ - barnBuffer && rabbitZ <= barnMaxZ + barnBuffer);
+
+                    if (!isNearHouse && !isNearLake && !isNearBarn) {
                         isValidPosition = true;
                     }
                 }
@@ -911,6 +937,13 @@
             const lakeRadius = 30;
             const exclusionBuffer = 5; // Буферная зона вокруг дома/озера
 
+            // Определяем ограничивающий прямоугольник сарайчика для обнаружения столкновений
+            const barnMinX = -40 - 2; // Позиция сарайчика -2.5, размер 5
+            const barnMaxX = -40 + 2;
+            const barnMinZ = 40 - 2;
+            const barnMaxZ = 40 + 2;
+            const barnBuffer = 3; // Буферная зона вокруг сарайчика
+
             for (let i = 0; i < numRocks; i++) {
                 let rockX, rockZ;
                 let isValidPosition = false;
@@ -927,7 +960,10 @@
                     );
                     const isNearLake = distanceToLakeCenter < (lakeRadius + exclusionBuffer);
 
-                    if (!isNearHouse && !isNearLake) {
+                    const isNearBarn = (rockX >= barnMinX - barnBuffer && rockX <= barnMaxX + barnBuffer &&
+                                        rockZ >= barnMinZ - barnBuffer && rockZ <= barnMaxZ + barnBuffer);
+
+                    if (!isNearHouse && !isNearLake && !isNearBarn) {
                         isValidPosition = true;
                     }
                 }
@@ -1183,6 +1219,79 @@
                 fireflies.push(firefly);
                 scene.add(firefly);
             }
+        }
+
+        /**
+         * Создает сарайчик (небольшой домик) в лесу.
+         */
+        function createBarn() {
+            const barn = new THREE.Group();
+            const barnWoodMaterial = new THREE.MeshStandardMaterial({ color: 0x8B4513, roughness: 0.7 }); // Коричневое дерево
+            const barnRoofMaterial = new THREE.MeshStandardMaterial({ color: 0xA0522D, roughness: 0.6 }); // Темно-коричневая крыша
+
+            // Стены сарайчика
+            const barnBodyGeometry = new THREE.BoxGeometry(5, 3, 4);
+            const barnBody = new THREE.Mesh(barnBodyGeometry, barnWoodMaterial);
+            barnBody.position.y = 1.5;
+            barnBody.castShadow = true;
+            barnBody.receiveShadow = true;
+            barn.add(barnBody);
+
+            // Крыша сарайчика (двускатная)
+            const barnRoofGeometry = new THREE.ConeGeometry(3.5, 2, 4, 8); // Использовать ConeGeometry с 4 сегментами для пирамидальной крыши
+            const barnRoof = new THREE.Mesh(barnRoofGeometry, barnRoofMaterial);
+            barnRoof.position.y = 3 + 1; // Высота стен + половина высоты крыши
+            barnRoof.rotation.y = Math.PI / 4; // Выравниваем по сторонам
+            barnRoof.scale.set(1.1, 1, 1.1); // Немного шире, чем тело сарайчика
+            barnRoof.castShadow = true;
+            barn.add(barnRoof);
+
+            // Дверь сарайчика (простая)
+            const barnDoorGeometry = new THREE.BoxGeometry(1.0, 2.0, 0.1);
+            const barnDoorMaterial = new THREE.MeshStandardMaterial({ color: 0x5C4033, roughness: 0.6 });
+            const barnDoor = new THREE.Mesh(barnDoorGeometry, barnDoorMaterial);
+            barnDoor.position.set(0, 1.0, 2.05); // Передняя сторона сарайчика
+            barnDoor.castShadow = true;
+            barn.add(barnDoor);
+
+            // Размещаем сарайчик в лесу
+            barn.position.set(-40, 0, 40); // Примерные координаты в лесу
+            scene.add(barn);
+
+            return barn; // Возвращаем сарайчик для позиционирования поленницы
+        }
+
+        /**
+         * Создает поленницу рядом с сарайчиком.
+         * @param {THREE.Group} barn - Объект сарайчика, рядом с которым будет размещена поленница.
+         */
+        function createFirewoodPile(barn) {
+            const firewoodPile = new THREE.Group();
+            const logMaterial = new THREE.MeshStandardMaterial({ color: 0x654321, roughness: 0.8 }); // Коричневый цвет полена
+
+            const logGeometry = new THREE.CylinderGeometry(0.15, 0.15, 1.0, 8); // Небольшое полено
+            const numLogsPerLayer = 8; // Увеличено количество поленьев в одном ряду
+            const numLayers = 5; // Увеличено количество слоев для большей поленницы
+
+            for (let layer = 0; layer < numLayers; layer++) {
+                for (let i = 0; i < numLogsPerLayer; i++) {
+                    const log = new THREE.Mesh(logGeometry, logMaterial);
+                    log.rotation.z = Math.PI / 2; // Поворачиваем, чтобы они лежали горизонтально
+                    log.position.set(
+                        (i * 0.3) - (numLogsPerLayer * 0.3 / 2) + 0.15, // Центрируем поленницу
+                        (layer * 0.3) + 0.15, // Смещение по Y для слоев
+                        0 // Z-позиция
+                    );
+                    log.castShadow = true;
+                    log.receiveShadow = true;
+                    firewoodPile.add(log);
+                }
+            }
+
+            // Размещаем поленницу рядом с сарайчиком
+            firewoodPile.position.set(barn.position.x + 3.5, 0, barn.position.z + 0.5); // Смещение относительно сарайчика
+            firewoodPile.rotation.y = Math.PI / 6; // Немного поворачиваем
+            scene.add(firewoodPile);
         }
 
 
@@ -1465,7 +1574,7 @@
                 // Анимация маха крыльями
                 const wingAngle = Math.sin(Date.now() * bird.userData.wingFlapSpeed) * bird.userData.wingFlapAmplitude;
                 if (bird.userData.leftWing) bird.userData.leftWing.rotation.x = Math.PI / 4 + wingAngle;
-                if (bird.userData.rightWing) bird.userData.rightWing.x = -Math.PI / 4 - wingAngle;
+                if (bird.userData.rightWing) bird.userData.rightWing.rotation.x = -Math.PI / 4 - wingAngle; // Исправлено: rotation.x вместо x
             }
 
             // Анимация светлячков
@@ -1588,6 +1697,10 @@
             createLilyPads(); // Добавляем кувшинки
             createBird(); // Добавляем птицу
             createFireflies(); // Добавляем светлячков
+
+            // Создаем сарайчик и поленницу
+            const barn = createBarn();
+            createFirewoodPile(barn);
             
             // Настраиваем освещение и элементы управления
             setupLighting(); 
