@@ -83,28 +83,50 @@
             line-height: 1.4;
         }
 
-        #toggleDayNightButton {
-            background-color: #4CAF50; /* Green */
-            border: none;
-            color: white;
-            padding: 5px 10px; /* Reduced padding for the button */
-            text-align: center;
-            text-decoration: none;
-            display: inline-block;
-            font-size: 24px; /* Increased font size for emoji */
-            margin-top: 5px; /* Reduced top margin */
-            cursor: pointer;
-            border-radius: 8px;
-            transition: background-color 0.3s ease;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            width: auto; /* Automatic width */
-            height: auto; /* Automatic height */
-            line-height: 1; /* Removed extra line height */
+        #dayNightSliderContainer {
+            margin-top: 10px;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 5px;
         }
 
-        #toggleDayNightButton:hover {
-            background-color: #45a049;
+        #dayNightSlider {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 8px;
+            background: linear-gradient(to right, #101040, #87CEEB);
+            border-radius: 5px;
+            outline: none;
+            opacity: 0.9;
+            transition: opacity .2s;
         }
+
+        #dayNightSlider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #4CAF50;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        #dayNightSlider::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #4CAF50;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        #dayNightIcon {
+            font-size: 24px;
+            line-height: 1;
+        }
+
 
         #game-ui {
             position: absolute;
@@ -140,7 +162,10 @@
         </div>
 
         <div id="info">
-            <button id="toggleDayNightButton">☀️</button> 
+            <div id="dayNightSliderContainer">
+                <span id="dayNightIcon">☀️</span>
+                <input type="range" id="dayNightSlider" min="0" max="100" value="100">
+            </div>
         </div>
 
         <div id="game-ui">
@@ -162,7 +187,9 @@
         let playerPosition = new THREE.Vector3(-10, 0.8, 0); 
         let playerRotation = 0;
         let walkAnimation = 0;
-        let windowLights = []; 
+        let windowLights = []; // Огни главного дома
+        let barnLights = []; // Огни сарайчика
+        let quarryLights = []; // Огни каменоломни
         let fish = []; 
         let rabbits = []; // Массив для объектов кроликов
         let clouds = []; // Массив для объектов облаков
@@ -183,8 +210,8 @@
         let collectibleStones = []; // Массив для всех собираемых камней (теперь генерируются в createRocks)
         let placedBuildingBlocks = []; // Новый массив для блоков, размещенных игроком для строительства
 
-        let transitionProgress = 1; 
-        let transitionSpeed = 0.02; 
+        let transitionProgress = 1; // 1 = день, 0 = ночь
+        let transitionSpeed = 0.02; // Скорость перехода
         let targetTransitionProgress = 1; 
 
         // Настройки дня и ночи для освещения и тумана
@@ -1373,6 +1400,13 @@
             barn.position.set(-40, 0, 40); 
             scene.add(barn);
 
+            // Точечный свет для лесопилки (локальная позиция внутри группы barn)
+            const barnLight = new THREE.PointLight(0xFFE0B2, nightSettings.windowLightIntensity, 10); 
+            barnLight.position.set(0, 2, 0); // Центр здания
+            barnLight.castShadow = true;
+            barn.add(barnLight); // Добавляем свет к группе сарайчика
+            barnLights.push(barnLight); // Добавляем в массив для управления интенсивностью
+
             return barn; 
         }
 
@@ -1506,6 +1540,13 @@
             // Размещаем каменоломню
             quarryHouse.position.set(40, 0, -40); // В другой стороне от домиков
             scene.add(quarryHouse);
+
+            // Точечный свет для каменоломни (локальная позиция внутри группы quarryHouse)
+            const quarryLight = new THREE.PointLight(0xFFE0B2, nightSettings.windowLightIntensity, 10); 
+            quarryLight.position.set(0, 2, 0); // Центр здания
+            quarryLight.castShadow = true;
+            quarryHouse.add(quarryLight); // Добавляем свет к группе каменоломни
+            quarryLights.push(quarryLight); // Добавляем в массив для управления интенсивностью
 
             return quarryHouse;
         }
@@ -1689,7 +1730,21 @@
             window.addEventListener('keydown', onKeyDown);
             window.addEventListener('keyup', onKeyUp);
 
-            document.getElementById('toggleDayNightButton').addEventListener('click', toggleDayNight);
+            // Обновляем обработчик для ползунка
+            const dayNightSlider = document.getElementById('dayNightSlider');
+            dayNightSlider.addEventListener('input', (event) => {
+                // Значение ползунка от 0 до 100, преобразуем в 0.0 до 1.0
+                targetTransitionProgress = event.target.value / 100;
+                // Обновляем иконку в зависимости от положения ползунка
+                const dayNightIcon = document.getElementById('dayNightIcon');
+                if (targetTransitionProgress > 0.5) {
+                    dayNightIcon.textContent = '☀️';
+                    isDayTime = true;
+                } else {
+                    dayNightIcon.textContent = '🌙';
+                    isDayTime = false;
+                }
+            });
         }
 
         // --- Обработчики событий ---
@@ -1809,35 +1864,64 @@
                 // Игрок не держит ресурс, пытается подобрать его
                 let pickedUp = false;
                 
-                // Поиск дерева для бревна
-                for (let i = 0; i < collectibleTrees.length; i++) {
-                    const tree = collectibleTrees[i];
-                    if (tree.userData.isCollectible && tree.userData.logsRemaining > 0) {
-                        const distanceToTree = playerPosition.distanceTo(tree.position);
-                        console.log('Расстояние до дерева (для подбора): ' + distanceToTree.toFixed(2) + '. Бревна остались: ' + tree.userData.logsRemaining);
-                        if (distanceToTree < interactDistance) {
-                            currentHeldResource = createCollectibleLog();
-                            player.userData.hand.add(currentHeldResource);
-                            playerHasResource = true;
-                            currentResourceType = 'log';
-                            tree.userData.logsRemaining--;
-                            
-                            if (tree.userData.logsRemaining === 0) {
-                                console.log('Дерево превращается в пенек!');
-                                tree.userData.originalFoliage.forEach(foliagePart => {
-                                    tree.remove(foliagePart);
-                                });
-                                const stump = createStump();
-                                tree.add(stump);
-                                tree.userData.isCollectible = false; // Больше не собираемое
-                            }
-                            pickedUp = true;
-                            break; 
+                // Поиск уже размещенных блоков для подбора
+                for (let i = 0; i < placedBuildingBlocks.length; i++) {
+                    const block = placedBuildingBlocks[i];
+                    const distanceToBlock = playerPosition.distanceTo(block.position);
+                    if (distanceToBlock < interactDistance) {
+                        currentHeldResource = block; // Подбираем сам меш
+                        currentResourceType = block.userData.type;
+                        
+                        // Сбрасываем позицию и вращение, чтобы он появился в руке корректно
+                        currentHeldResource.position.set(0, 0, 0); 
+                        if (currentResourceType === 'log') {
+                            currentHeldResource.rotation.set(0, 0, Math.PI / 2); // Горизонтально в руке
+                        } else {
+                            currentHeldResource.rotation.set(0, 0, 0); // Без случайного вращения в руке
                         }
-                    } else if (tree.userData.isCollectible && tree.userData.logsRemaining === 0) {
-                        const distanceToTree = playerPosition.distanceTo(tree.position);
-                        if (distanceToTree < interactDistance) {
-                            console.log('Это дерево уже превратилось в пенек. Больше бревен нет.');
+
+                        player.userData.hand.add(currentHeldResource); // Добавляем в руку
+                        // Важно: не удаляем из сцены, так как он уже был частью сцены, просто меняем родителя
+                        // scene.remove(block); // Эту строку нужно убрать
+                        placedBuildingBlocks.splice(i, 1); // Удаляем из массива размещенных блоков
+                        playerHasResource = true;
+                        pickedUp = true;
+                        console.log(`Ресурс ${currentResourceType} подобран с земли.`);
+                        break;
+                    }
+                }
+
+                // Если не подобрал размещенный блок, ищем дерево для бревна
+                if (!pickedUp) {
+                    for (let i = 0; i < collectibleTrees.length; i++) {
+                        const tree = collectibleTrees[i];
+                        if (tree.userData.isCollectible && tree.userData.logsRemaining > 0) {
+                            const distanceToTree = playerPosition.distanceTo(tree.position);
+                            console.log('Расстояние до дерева (для подбора): ' + distanceToTree.toFixed(2) + '. Бревна остались: ' + tree.userData.logsRemaining);
+                            if (distanceToTree < interactDistance) {
+                                currentHeldResource = createCollectibleLog();
+                                player.userData.hand.add(currentHeldResource);
+                                playerHasResource = true;
+                                currentResourceType = 'log';
+                                tree.userData.logsRemaining--;
+                                
+                                if (tree.userData.logsRemaining === 0) {
+                                    console.log('Дерево превращается в пенек!');
+                                    tree.userData.originalFoliage.forEach(foliagePart => {
+                                        tree.remove(foliagePart);
+                                    });
+                                    const stump = createStump();
+                                    tree.add(stump);
+                                    tree.userData.isCollectible = false; // Больше не собираемое
+                                }
+                                pickedUp = true;
+                                break; 
+                            }
+                        } else if (tree.userData.isCollectible && tree.userData.logsRemaining === 0) {
+                            const distanceToTree = playerPosition.distanceTo(tree.position);
+                            if (distanceToTree < interactDistance) {
+                                console.log('Это дерево уже превратилось в пенек. Больше бревен нет.');
+                            }
                         }
                     }
                 }
@@ -1883,13 +1967,7 @@
          * Переключает между дневными и ночными настройками с плавным переходом.
          */
         function toggleDayNight() {
-            isDayTime = !isDayTime;
-            targetTransitionProgress = isDayTime ? 1 : 0; 
-
-            const button = document.getElementById('toggleDayNightButton');
-            if (button) {
-                button.textContent = isDayTime ? '☀️' : '🌙';
-            }
+            // Эта функция больше не используется напрямую, так как есть ползунок
         }
 
         /**
@@ -1908,9 +1986,12 @@
             requestAnimationFrame(animate);
 
             // Логика плавного перехода дня/ночи
+            // isDayTime теперь определяется ползунком
             if (transitionProgress !== targetTransitionProgress) {
                 const delta = targetTransitionProgress - transitionProgress;
-                transitionProgress += Math.sign(delta) * transitionSpeed;
+                // Уменьшаем скорость, чтобы переход был более плавным
+                const currentTransitionSpeed = Math.abs(delta) < transitionSpeed ? Math.abs(delta) : transitionSpeed;
+                transitionProgress += Math.sign(delta) * currentTransitionSpeed;
 
                 transitionProgress = Math.max(0, Math.min(1, transitionProgress));
 
@@ -1934,8 +2015,6 @@
                     const dirColorDay = new THREE.Color(daySettings.directionalColor);
                     const dirColorNight = new THREE.Color(nightSettings.directionalColor);
                     directionalLight.color.copy(dirColorNight).lerp(dirColorDay, transitionProgress);
-                    // Позиция DirectionalLight теперь зафиксирована, она не будет меняться между днем и ночью.
-                    // directionalLight.position.lerpVectors(nightSettings.directionalPosition, daySettings.directionalPosition, transitionProgress);
                 }
                 if (hemisphereLight) {
                     const hemiSkyColorDay = new THREE.Color(daySettings.hemisphereSkyColor);
@@ -1948,8 +2027,15 @@
                     hemisphereLight.intensity = nightSettings.hemisphereIntensity + (daySettings.hemisphereIntensity - nightSettings.hemisphereIntensity) * transitionProgress;
                 }
 
+                // Обновление интенсивности света в окнах и зданиях
                 windowLights.forEach(light => {
-                    light.intensity = nightSettings.windowLightIntensity + (daySettings.windowLightIntensity - nightSettings.windowLightIntensity) * transitionProgress;
+                    light.intensity = nightSettings.windowLightIntensity * (1 - transitionProgress); // Макс ночью, мин днем
+                });
+                barnLights.forEach(light => {
+                    light.intensity = nightSettings.windowLightIntensity * (1 - transitionProgress);
+                });
+                quarryLights.forEach(light => {
+                    light.intensity = nightSettings.windowLightIntensity * (1 - transitionProgress);
                 });
 
                 // Обновление прозрачности светлячков во время перехода
@@ -2186,11 +2272,13 @@
             setupControls();
 
             // Начальное состояние дня/ночи
-            targetTransitionProgress = isDayTime ? 1 : 0;
-            const button = document.getElementById('toggleDayNightButton');
-            if (button) {
-                button.textContent = isDayTime ? '☀️' : '🌙';
-            }
+            // Устанавливаем ползунок в начальное положение (день)
+            const dayNightSlider = document.getElementById('dayNightSlider');
+            dayNightSlider.value = 100; // 100% для дня
+            targetTransitionProgress = 1; // 1 = день
+            const dayNightIcon = document.getElementById('dayNightIcon');
+            dayNightIcon.textContent = '☀️';
+
 
             // Запускаем цикл анимации
             animate();
