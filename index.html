@@ -183,7 +183,7 @@
         let ambientLight, directionalLight, hemisphereLight; 
         let isMouseDown = false, mouseX = 0, mouseY = 0;
         let cameraAngleX = 0.3, cameraAngleY = 0;
-        let cameraDistance = 40; // Увеличено начальное расстояние камеры для большего мира
+        let cameraDistance = 40; // Начальное расстояние камеры
         let isDayTime = true; // Используется для логики светлячков и иконки
         let keys = {};
         let playerPosition = new THREE.Vector3(-10, 0.8, 0); 
@@ -220,6 +220,15 @@
 
         let isSliderDragging = false; // Флаг для отслеживания перетаскивания ползунка
         let isManualTimeControl = false; // Флаг, который становится true, если пользователь вручную изменил ползунок
+
+        // Глобальные константы для размеров мира и объектов
+        const worldSize = 200; // Размер земли
+        const forestRange = 90; // Максимальный диапазон для деревьев и камней
+        const lakeCenterX = 60; // Центр озера X
+        const lakeCenterZ = 0; // Центр озера Z
+        const lakeRadius = 30; // Радиус озера (для определения формы)
+        const lakeReedsOffset = 0.5; // Расстояние камышей от края озера
+        const sunLoungerOffset = 2; // Расстояние лежака от камышей
 
         // Настройки дня и ночи для освещения и тумана
         const daySettings = {
@@ -486,7 +495,7 @@
          * Создает плоскость земли.
          */
         function createGround() {
-            const groundGeometry = new THREE.PlaneGeometry(200, 200); // Удвоенный размер
+            const groundGeometry = new THREE.PlaneGeometry(worldSize, worldSize); 
             const groundMaterial = new THREE.MeshStandardMaterial({ color: 0x90EE90, roughness: 0.9, metalness: 0.0 });
             const ground = new THREE.Mesh(groundGeometry, groundMaterial);
             ground.rotation.x = -Math.PI / 2;
@@ -512,8 +521,8 @@
          * Создает различные типы деревьев (лиственные и ели) и размещает их, избегая дома и озера.
          */
         function createTrees() {
-            const numDeciduousTrees = 60; // Удвоено количество для плотности в большем мире
-            const numFirTrees = 80;      // Удвоено количество
+            const numDeciduousTrees = 60; 
+            const numFirTrees = 80;      
 
             // Определяем ограничивающий прямоугольник дома для обнаружения столкновений
             const houseMinX = -2;
@@ -522,29 +531,28 @@
             const houseMaxZ = 2;
 
             // Определяем ограничивающий круг озера для обнаружения столкновений (масштабированное положение и радиус)
-            const lakeCenterX = 60; // Удвоено
-            const lakeCenterZ = 0;
-            const lakeRadius = 30; // Удвоено
-            const lakeBuffer = 6; // Удвоенная буферная зона
+            const currentLakeRadius = lakeRadius; // Используем глобальную переменную
+            const lakeBuffer = 6; 
 
             // Определяем ограничивающий прямоугольник сарайчика для обнаружения столкновений
-            const barnMinX = -40 - 2; // Позиция сарайчика -2.5, размер 5
+            const barnMinX = -40 - 2; 
             const barnMaxX = -40 + 2;
             const barnMinZ = 40 - 2;
             const barnMaxZ = 40 + 2;
-            const barnBuffer = 3; // Буферная зона вокруг сарайчика
+            const barnBuffer = 3; 
 
             // Определяем ограничивающий прямоугольник каменоломни для обнаружения столкновений
             const quarryMinX = 40 - 2;
             const quarryMaxX = 40 + 2;
             const quarryMinZ = -40 - 2;
             const quarryMaxZ = -40 + 2;
-            const quarryBuffer = 3;
+            const quarryBuffer = 3; 
 
 
             // Лиственные деревья
             const deciduousTrunkMaterial = new THREE.MeshStandardMaterial({ color: 0x8B4513, roughness: 0.8 });
             const deciduousFoliageMaterial = new THREE.MeshStandardMaterial({ color: 0x228B22, roughness: 0.7 });
+            const appleMaterial = new THREE.MeshStandardMaterial({ color: 0xFF0000, roughness: 0.5 }); // Красные яблоки
 
             for (let i = 0; i < numDeciduousTrees; i++) {
                 const tree = new THREE.Group();
@@ -553,8 +561,8 @@
 
                 // Продолжаем генерировать случайные позиции, пока она не окажется за пределами дома, озера, сарайчика и каменоломни
                 while (!isValidPosition) {
-                    treeX = -90 + Math.random() * 180; // Удвоенный диапазон
-                    treeZ = -90 + Math.random() * 180; // Удвоенный диапазон
+                    treeX = -forestRange + Math.random() * (forestRange * 2); 
+                    treeZ = -forestRange + Math.random() * (forestRange * 2); 
 
                     // Проверяем, не слишком ли дерево близко к дому
                     const isNearHouse = (treeX >= houseMinX - 3 && treeX <= houseMaxX + 3 && 
@@ -565,7 +573,7 @@
                         Math.pow(treeX - lakeCenterX, 2) + 
                         Math.pow(treeZ - lakeCenterZ, 2)
                     );
-                    const isNearLake = distanceToLakeCenter < (lakeRadius + lakeBuffer);
+                    const isNearLake = distanceToLakeCenter < (currentLakeRadius + lakeBuffer);
 
                     // Проверяем, не слишком ли дерево близко к сарайчику
                     const isNearBarn = (treeX >= barnMinX - barnBuffer && treeX <= barnMaxX + barnBuffer &&
@@ -601,6 +609,22 @@
                     tree.add(foliage);
                 }
 
+                // Добавляем яблоки на некоторые деревья
+                if (Math.random() < 0.8) { // Увеличен шанс на яблоки (80%)
+                    const numApples = 8 + Math.floor(Math.random() * 7); // 8-14 яблок
+                    for (let k = 0; k < numApples; k++) {
+                        const appleGeometry = new THREE.SphereGeometry(0.15, 8, 8);
+                        const apple = new THREE.Mesh(appleGeometry, appleMaterial);
+                        apple.position.set(
+                            (Math.random() - 0.5) * 1.2,
+                            2.0 + Math.random() * 1.5,
+                            (Math.random() - 0.5) * 1.2
+                        );
+                        apple.castShadow = true;
+                        tree.add(apple);
+                    }
+                }
+
                 tree.position.x = treeX; 
                 tree.position.z = treeZ; 
                 tree.scale.setScalar(0.7 + Math.random() * 0.6); 
@@ -623,8 +647,8 @@
 
                 // Продолжаем генерировать случайные позиции, пока она не окажется за пределами дома, озера, сарайчика и каменоломни
                 while (!isValidPosition) {
-                    treeX = -90 + Math.random() * 180; // Удвоенный диапазон
-                    treeZ = -90 + Math.random() * 180; // Удвоенный диапазон
+                    treeX = -forestRange + Math.random() * (forestRange * 2); 
+                    treeZ = -forestRange + Math.random() * (forestRange * 2); 
 
                     // Проверяем, не слишком ли дерево близко к дому
                     const isNearHouse = (treeX >= houseMinX - 3 && treeX <= houseMaxX + 3 && 
@@ -635,7 +659,7 @@
                         Math.pow(treeX - lakeCenterX, 2) + 
                         Math.pow(treeZ - lakeCenterZ, 2)
                     );
-                    const isNearLake = distanceToLakeCenter < (lakeRadius + lakeBuffer);
+                    const isNearLake = distanceToLakeCenter < (currentLakeRadius + lakeBuffer);
 
                     // Проверяем, не слишком ли дерево близко к сарайчику
                     const isNearBarn = (treeX >= barnMinX - barnBuffer && treeX <= barnMaxX + barnBuffer &&
@@ -709,8 +733,8 @@
                 new THREE.Vector2(-13, 5),
                 new THREE.Vector2(-8, 12)
             ];
-            // Масштабируем точки, чтобы удвоить размер озера
-            const scaledShapePoints = shapePoints.map(p => new THREE.Vector2(p.x * 2, p.y * 2));
+            // Масштабируем точки, чтобы вернуть к оригинальному размеру
+            const scaledShapePoints = shapePoints.map(p => new THREE.Vector2(p.x, p.y)); 
 
             const lakeShape = new THREE.Shape(scaledShapePoints);
             const lakeGeometry = new THREE.ShapeGeometry(lakeShape); 
@@ -726,7 +750,7 @@
             });
             const lake = new THREE.Mesh(lakeGeometry, waterMaterial);
             lake.rotation.x = -Math.PI / 2; 
-            lake.position.set(60, 0.01, 0); // Удвоенная позиция по X
+            lake.position.set(lakeCenterX, 0.01, lakeCenterZ); 
             scene.add(lake);
 
             // Рыба
@@ -734,14 +758,14 @@
             const fishGeometry = new THREE.BoxGeometry(0.5, 0.2, 0.2); 
             const fishMaterial = new THREE.MeshStandardMaterial({ color: 0xFF8C00 }); 
 
-            const fishBoundaryRadius = 36; // Удвоено
+            const fishBoundaryRadius = lakeRadius * 1.2; // Граница рыбы относительно радиуса озера
 
             for (let i = 0; i < numFish; i++) {
                 const f = new THREE.Mesh(fishGeometry, fishMaterial);
                 f.position.set(
-                    lake.position.x + (Math.random() - 0.5) * fishBoundaryRadius * 1.8, 
-                    lake.position.y - (0.1 + Math.random() * 0.3), 
-                    lake.position.z + (Math.random() - 0.5) * fishBoundaryRadius * 1.8
+                    lakeCenterX + (Math.random() - 0.5) * fishBoundaryRadius * 1.8, 
+                    lakeCenterZ - (0.1 + Math.random() * 0.3), 
+                    lakeCenterZ + (Math.random() - 0.5) * fishBoundaryRadius * 1.8
                 );
                 f.userData.velocity = new THREE.Vector3(
                     (Math.random() - 0.5) * 0.025, 
@@ -758,18 +782,15 @@
          * Создает растительность вокруг озера (кусты и камыши).
          */
         function createLakeVegetation() {
-            const lakeCenterX = 60; // Удвоено
-            const lakeCenterZ = 0;
-            const lakeRadius = 30; // Удвоено
-            const numBushes = 60; // Удвоено
-            const numReeds = 100; // Удвоено
+            const numBushes = 60; 
+            const numReeds = 100; 
 
             const bushMaterial = new THREE.MeshStandardMaterial({ color: 0x558B2F, roughness: 0.8 });
             for (let i = 0; i < numBushes; i++) {
                 const bush = new THREE.Mesh(new THREE.SphereGeometry(0.3 + Math.random() * 0.3, 12, 12), bushMaterial); // Увеличено количество сегментов
                 
                 const angle = Math.random() * Math.PI * 2;
-                const distance = lakeRadius + 4 + Math.random() * 10; // Удвоено расстояние и диапазон
+                const distance = lakeRadius + 4 + Math.random() * 10; 
                 bush.position.set(
                     lakeCenterX + Math.cos(angle) * distance,
                     0.15, 
@@ -800,7 +821,8 @@
                 reed.add(head);
                 
                 const angle = Math.random() * Math.PI * 2;
-                const distance = lakeRadius - 2 + Math.random() * 4; // Удвоено расстояние и диапазон
+                // Размещаем камыши по краю озера
+                const distance = lakeRadius + lakeReedsOffset + (Math.random() * 0.5); // Камыши по краю озера
                 reed.position.set(
                     lakeCenterX + Math.cos(angle) * distance,
                     0, 
@@ -816,15 +838,13 @@
          * Создает пирс и лодку на озере.
          */
         function createPierAndBoat() {
-            const lakeCenter = new THREE.Vector3(60, 0.01, 0); // Удвоенная позиция по X
-
-            // Создаем пирс
+            // Центр озера уже определен как lakeCenterX, lakeCenterZ
             const pierMaterial = new THREE.MeshStandardMaterial({ color: 0x8B4513, roughness: 0.6 }); 
             
             // Основная часть пирса
             const pierBaseGeometry = new THREE.BoxGeometry(1.5, 0.2, 5); 
             const pierBase = new THREE.Mesh(pierBaseGeometry, pierMaterial);
-            pierBase.position.set(lakeCenter.x + 20, lakeCenter.y + pierBaseGeometry.parameters.height / 2 + 0.01, lakeCenter.z + 10); // Скорректированная позиция по X
+            pierBase.position.set(lakeCenterX + 20, 0.01 + pierBaseGeometry.parameters.height / 2, lakeCenterZ + 10); 
             pierBase.castShadow = true;
             pierBase.receiveShadow = true;
             scene.add(pierBase);
@@ -833,12 +853,12 @@
             const pierLegGeometry = new THREE.CylinderGeometry(0.1, 0.1, 0.8, 8);
             for (let i = 0; i < 3; i++) {
                 const leg1 = new THREE.Mesh(pierLegGeometry, pierMaterial);
-                leg1.position.set(pierBase.position.x - 0.5, lakeCenter.y - 0.4, pierBase.position.z - 1.5 + i * 1.5);
+                leg1.position.set(pierBase.position.x - 0.5, -0.4, pierBase.position.z - 1.5 + i * 1.5);
                 leg1.castShadow = true;
                 scene.add(leg1);
 
                 const leg2 = new THREE.Mesh(pierLegGeometry, pierMaterial);
-                leg2.position.set(pierBase.position.x + 0.5, lakeCenter.y - 0.4, pierBase.position.z - 1.5 + i * 1.5);
+                leg2.position.set(pierBase.position.x + 0.5, -0.4, pierBase.position.z - 1.5 + i * 1.5);
                 leg2.castShadow = true;
                 scene.add(leg2);
             }
@@ -868,7 +888,7 @@
             boat.add(seat);
 
             // Размещаем лодку на уровне озера
-            boat.position.set(pierBase.position.x + 2, lakeCenter.y + boatHullGeometry.parameters.height / 2, pierBase.position.z + 1.5); // Скорректированная позиция по X
+            boat.position.set(pierBase.position.x + 2, 0.01 + boatHullGeometry.parameters.height / 2, pierBase.position.z + 1.5); 
             boat.rotation.y = -Math.PI / 4; 
             boat.castShadow = true;
             boat.receiveShadow = true;
@@ -919,17 +939,15 @@
             const houseMinZ = -2;
             const houseMaxZ = 2;
 
-            const lakeCenterX = 60; // Масштабировано
-            const lakeCenterZ = 0;
-            const lakeRadius = 30; // Масштабировано
-            const exclusionBuffer = 4; // Скорректированная буферная зона
+            const currentLakeRadius = lakeRadius; 
+            const exclusionBuffer = 4; 
 
             // Определяем ограничивающий прямоугольник сарайчика для обнаружения столкновений
-            const barnMinX = -40 - 2; // Позиция сарайчика -2.5, размер 5
+            const barnMinX = -40 - 2; 
             const barnMaxX = -40 + 2;
             const barnMinZ = 40 - 2;
             const barnMaxZ = 40 + 2;
-            const barnBuffer = 3; // Буферная зона вокруг сарайчика
+            const barnBuffer = 3; 
 
             // Определяем ограничивающий прямоугольник каменоломни для обнаружения столкновений
             const quarryMinX = 40 - 2;
@@ -948,8 +966,8 @@
                 let isValidPosition = false;
 
                 while (!isValidPosition) {
-                    rabbitX = -90 + Math.random() * 180; // Удвоенный диапазон
-                    rabbitZ = -90 + Math.random() * 180; // Удвоенный диапазон
+                    rabbitX = -forestRange + Math.random() * (forestRange * 2); 
+                    rabbitZ = -forestRange + Math.random() * (forestRange * 2); 
 
                     // Проверяем, не слишком ли кролик близко к дому
                     const isNearHouse = (rabbitX >= houseMinX - exclusionBuffer && rabbitX <= houseMaxX + exclusionBuffer && 
@@ -960,7 +978,7 @@
                         Math.pow(rabbitX - lakeCenterX, 2) + 
                         Math.pow(rabbitZ - lakeCenterZ, 2)
                     );
-                    const isNearLake = distanceToLakeCenter < (lakeRadius + exclusionBuffer);
+                    const isNearLake = distanceToLakeCenter < (currentLakeRadius + exclusionBuffer);
 
                     // Проверяем, не слишком ли кролик близко к сарайчику
                     const isNearBarn = (rabbitX >= barnMinX - barnBuffer && rabbitX <= barnMaxX + barnBuffer &&
@@ -1060,15 +1078,14 @@
          * Создает разбросанные камни/камни по местности, которые теперь также собираемы.
          */
         function createRocks() {
-            const numRocks = 150; // Увеличено количество разбросанных камней
+            const numRocks = 150; 
             const rockMaterial = new THREE.MeshStandardMaterial({ color: 0x808080, roughness: 0.9, metalness: 0.0 }); // Серый цвет камня
 
             // Определяем зоны исключения (дом, озеро, сарайчик, каменоломня)
             const houseMinX = -2; const houseMaxX = 2;
             const houseMinZ = -2; const houseMaxZ = 2;
-            const lakeCenterX = 60; const lakeCenterZ = 0;
-            const lakeRadius = 30;
-            const exclusionBuffer = 5; // Буферная зона вокруг дома/озера
+            const currentLakeRadius = lakeRadius;
+            const exclusionBuffer = 5; 
 
             const barnMinX = -40 - 2;
             const barnMaxX = -40 + 2;
@@ -1083,8 +1100,8 @@
             const quarryBuffer = 3;
 
             // Добавляем зоны исключения для нового леса
-            const forestMinX = 60; const forestMaxX = 90; // Правый дальний угол
-            const forestMinZ = -90; const forestMaxZ = -60; // Правый дальний угол
+            const forestMinX = 60; const forestMaxX = 90; 
+            const forestMinZ = -90; const forestMaxZ = -60; 
             const forestBuffer = 5;
 
             for (let i = 0; i < numRocks; i++) {
@@ -1092,8 +1109,8 @@
                 let isValidPosition = false;
 
                 while (!isValidPosition) {
-                    rockX = -90 + Math.random() * 180; // Полный диапазон мира
-                    rockZ = -90 + Math.random() * 180; // Полный диапазон мира
+                    rockX = -forestRange + Math.random() * (forestRange * 2); 
+                    rockZ = -forestRange + Math.random() * (forestRange * 2); 
 
                     const isNearHouse = (rockX >= houseMinX - exclusionBuffer && rockX <= houseMaxX + exclusionBuffer && 
                                          rockZ >= houseMinZ - exclusionBuffer && rockZ <= houseMaxZ + exclusionBuffer);
@@ -1101,7 +1118,7 @@
                         Math.pow(rockX - lakeCenterX, 2) + 
                         Math.pow(rockZ - lakeCenterZ, 2)
                     );
-                    const isNearLake = distanceToLakeCenter < (lakeRadius + exclusionBuffer);
+                    const isNearLake = distanceToLakeCenter < (currentLakeRadius + exclusionBuffer);
 
                     const isNearBarn = (rockX >= barnMinX - barnBuffer && rockX <= barnMaxX + barnBuffer &&
                                          rockZ >= barnMinZ - barnBuffer && rockZ <= barnMaxZ + barnBuffer);
@@ -1146,7 +1163,7 @@
          */
         let cloudMeshes = []; // Массив для хранения мешей облаков для анимации
         function createClouds() {
-            const numClouds = 10;
+            const numClouds = 10; 
             const cloudMaterial = new THREE.MeshStandardMaterial({ color: 0xFFFFFF, transparent: true, opacity: 0.8, roughness: 0.5 });
 
             for (let i = 0; i < numClouds; i++) {
@@ -1166,9 +1183,9 @@
                 }
 
                 cloud.position.set(
-                    -90 + Math.random() * 180, // Широкий диапазон по всему миру
+                    -forestRange - 10 + Math.random() * (forestRange * 2 + 20), // Диапазон мира
                     30 + Math.random() * 10,  // Высоко в небе
-                    -90 + Math.random() * 180
+                    -forestRange - 10 + Math.random() * (forestRange * 2 + 20)
                 );
                 cloud.scale.setScalar(0.5 + Math.random()); // Варьируем размер облака
                 cloud.userData.speed = (Math.random() - 0.5) * 0.05; // Случайная горизонтальная скорость
@@ -1277,11 +1294,7 @@
             const lilyPadMaterial = new THREE.MeshStandardMaterial({ color: 0x32CD32, roughness: 0.7 }); // Зеленый цвет кувшинки
             const flowerMaterial = new THREE.MeshStandardMaterial({ color: 0xFFB6C1, roughness: 0.5 }); // Розовый цвет цветка
 
-            const lakeCenterX = 60;
-            const lakeCenterZ = 0;
-            const lakeRadius = 28; // Чуть меньше радиуса озера, чтобы они были внутри
-
-            const numLilyPads = 20;
+            const numLilyPads = 20; 
 
             for (let i = 0; i < numLilyPads; i++) {
                 const lilyPad = new THREE.Group();
@@ -1345,7 +1358,7 @@
             bird.userData.rightWing = rightWing; // Сохраняем ссылку для анимации
 
             bird.position.set(0, 15, -20); // Начальная позиция птицы
-            bird.userData.flightRadius = 50; // Радиус полета
+            bird.userData.flightRadius = 50; 
             bird.userData.flightSpeed = 0.005; // Скорость полета
             bird.userData.flightAngle = Math.random() * Math.PI * 2; // Начальный угол полета
             bird.userData.wingFlapSpeed = 0.2; // Скорость маха крыльями
@@ -1361,13 +1374,13 @@
             const fireflyMaterial = new THREE.MeshBasicMaterial({ color: 0xFFFF00, transparent: true, opacity: 0.0 }); // Желтый, изначально невидимый
             const fireflyGeometry = new THREE.SphereGeometry(0.05, 8, 8);
 
-            const numFireflies = 50;
+            const numFireflies = 50; 
             for (let i = 0; i < numFireflies; i++) {
                 const firefly = new THREE.Mesh(fireflyGeometry, fireflyMaterial.clone()); // Клонируем материал для индивидуальной прозрачности
                 firefly.position.set(
-                    -90 + Math.random() * 180,
-                    1 + Math.random() * 5, // Высота над землей
-                    -90 + Math.random() * 180
+                    -forestRange + Math.random() * (forestRange * 2), 
+                    1 + Math.random() * 5, 
+                    -forestRange + Math.random() * (forestRange * 2)
                 );
                 firefly.userData.speed = 0.01 + Math.random() * 0.02; // Скорость движения
                 firefly.userData.offset = Math.random() * Math.PI * 2; // Смещение для мерцания
@@ -1426,7 +1439,7 @@
         }
 
         /**
-         * Создает поленницу рядом с сарайчиком (лесопилкой).
+         * Создает поленницу рядом с сарайчиком (лесопилки).
          * @param {THREE.Group} barn - Объект сарайчика, рядом с которым будет размещена поленница.
          */
         function createFirewoodPile(barn) {
@@ -1553,7 +1566,7 @@
 
 
             // Размещаем каменоломню
-            quarryHouse.position.set(40, 0, -40); // В другой стороне от домиков
+            quarryHouse.position.set(40, 0, -40); 
             scene.add(quarryHouse);
 
             // Точечный свет для каменоломни (локальная позиция внутри группы quarryHouse)
@@ -1563,7 +1576,7 @@
             quarryHouse.add(quarryLight); // Добавляем свет к группе каменоломни
             quarryLights.push(quarryLight); // Добавляем в массив для управления интенсивностью
 
-            return quarryHouse;
+            return quarryHouse; 
         }
 
         /**
@@ -1714,11 +1727,11 @@
             directionalLight.shadow.mapSize.width = 2048;
             directionalLight.shadow.mapSize.height = 2048;
             directionalLight.shadow.camera.near = 0.5;
-            directionalLight.shadow.camera.far = 200; // Увеличена дальняя плоскость для большего мира
-            directionalLight.shadow.camera.left = -90; // Скорректировано для большего мира
-            directionalLight.shadow.camera.right = 90; // Скорректировано для большего мира
-            directionalLight.shadow.camera.top = 90; // Скорректировано для большего мира
-            directionalLight.shadow.camera.bottom = -90; // Скорректировано для большего мира
+            directionalLight.shadow.camera.far = 200; 
+            directionalLight.shadow.camera.left = -90; 
+            directionalLight.shadow.camera.right = 90; 
+            directionalLight.shadow.camera.top = 90; 
+            directionalLight.shadow.camera.bottom = -90; 
             scene.add(directionalLight);
 
             hemisphereLight = new THREE.HemisphereLight(daySettings.hemisphereSkyColor, daySettings.hemisphereGroundColor, daySettings.hemisphereIntensity);
@@ -1818,7 +1831,7 @@
 
         function onWheel(event) {
             cameraDistance += event.deltaY * 0.01;
-            cameraDistance = Math.max(3, Math.min(200, cameraDistance)); // Увеличено максимальное расстояние камеры для большего мира
+            cameraDistance = Math.max(3, Math.min(200, cameraDistance)); 
         }
 
         /**
@@ -1977,11 +1990,11 @@
          * Создает плотный лес в правом дальнем углу карты и размещает в нем оленей.
          */
         function createDenseForestWithDeer() {
-            const forestMinX = 60; // Правый дальний угол
+            const forestMinX = 60; 
             const forestMaxX = 90;
-            const forestMinZ = -90; // Правый дальний угол
+            const forestMinZ = -90; 
             const forestMaxZ = -60;
-            const treeCount = 100; // Увеличиваем количество деревьев для плотности
+            const treeCount = 100; 
 
             const deciduousTrunkMaterial = new THREE.MeshStandardMaterial({ color: 0x8B4513, roughness: 0.8 });
             const deciduousFoliageMaterial = new THREE.MeshStandardMaterial({ color: 0x228B22, roughness: 0.7 });
@@ -2072,11 +2085,12 @@
         function createDeer(x, z) {
             const deerGroup = new THREE.Group();
             const deerMaterial = new THREE.MeshStandardMaterial({ color: 0x8B4513, roughness: 0.7 }); // Коричневый цвет оленя
+            const legMaterial = new THREE.MeshStandardMaterial({ color: 0x5C4033, roughness: 0.7 }); // Темно-коричневый для ног
 
             // Тело
             const bodyGeometry = new THREE.BoxGeometry(1.5, 0.8, 0.7);
             const body = new THREE.Mesh(bodyGeometry, deerMaterial);
-            body.position.y = 0.4;
+            body.position.y = 0.8; // Подняли тело, чтобы оно стояло на ногах
             body.castShadow = true;
             body.receiveShadow = true;
             deerGroup.add(body);
@@ -2084,7 +2098,7 @@
             // Шея
             const neckGeometry = new THREE.CylinderGeometry(0.15, 0.15, 0.5, 8);
             const neck = new THREE.Mesh(neckGeometry, deerMaterial);
-            neck.position.set(0.6, 0.8, 0);
+            neck.position.set(0.6, 1.2, 0); // Подняли шею
             neck.rotation.z = Math.PI / 4;
             neck.castShadow = true;
             neck.receiveShadow = true;
@@ -2093,7 +2107,7 @@
             // Голова
             const headGeometry = new THREE.SphereGeometry(0.3, 12, 12);
             const head = new THREE.Mesh(headGeometry, deerMaterial);
-            head.position.set(0.9, 1.1, 0);
+            head.position.set(0.9, 1.5, 0); // Подняли голову
             head.castShadow = true;
             head.receiveShadow = true;
             deerGroup.add(head);
@@ -2102,12 +2116,12 @@
             const earGeometry = new THREE.PlaneGeometry(0.2, 0.3);
             const earMaterial = new THREE.MeshStandardMaterial({ color: 0x654321, side: THREE.DoubleSide });
             const leftEar = new THREE.Mesh(earGeometry, earMaterial);
-            leftEar.position.set(0.95, 1.3, 0.15);
+            leftEar.position.set(0.95, 1.7, 0.15); // Подняли уши
             leftEar.rotation.y = Math.PI / 4;
             leftEar.rotation.x = -Math.PI / 8;
             deerGroup.add(leftEar);
             const rightEar = new THREE.Mesh(earGeometry, earMaterial);
-            rightEar.position.set(0.95, 1.3, -0.15);
+            rightEar.position.set(0.95, 1.7, -0.15); // Подняли уши
             rightEar.rotation.y = -Math.PI / 4;
             rightEar.rotation.x = -Math.PI / 8;
             deerGroup.add(rightEar);
@@ -2118,49 +2132,48 @@
             const antlerBranchGeometry = new THREE.CylinderGeometry(0.03, 0.05, 0.3, 6);
 
             const leftAntlerBase = new THREE.Mesh(antlerBaseGeometry, antlerMaterial);
-            leftAntlerBase.position.set(0.9, 1.4, 0.1);
+            leftAntlerBase.position.set(0.9, 1.8, 0.1); // Подняли рога
             leftAntlerBase.rotation.z = Math.PI / 6;
             deerGroup.add(leftAntlerBase);
 
             const leftAntlerBranch1 = new THREE.Mesh(antlerBranchGeometry, antlerMaterial);
-            leftAntlerBranch1.position.set(0.9 + 0.1, 1.4 + 0.2, 0.1 + 0.05);
+            leftAntlerBranch1.position.set(0.9 + 0.1, 1.8 + 0.2, 0.1 + 0.05); // Подняли ветви рогов
             leftAntlerBranch1.rotation.z = Math.PI / 3;
             deerGroup.add(leftAntlerBranch1);
 
             const rightAntlerBase = new THREE.Mesh(antlerBaseGeometry, antlerMaterial);
-            rightAntlerBase.position.set(0.9, 1.4, -0.1);
+            rightAntlerBase.position.set(0.9, 1.8, -0.1); // Подняли рога
             rightAntlerBase.rotation.z = Math.PI / 6;
             deerGroup.add(rightAntlerBase);
 
             const rightAntlerBranch1 = new THREE.Mesh(antlerBranchGeometry, antlerMaterial);
-            rightAntlerBranch1.position.set(0.9 + 0.1, 1.4 + 0.2, -0.1 - 0.05);
+            rightAntlerBranch1.position.set(0.9 + 0.1, 1.8 + 0.2, -0.1 - 0.05);
             rightAntlerBranch1.rotation.z = Math.PI / 3;
             deerGroup.add(rightAntlerBranch1);
 
 
             // Ноги
-            const legGeometry = new THREE.CylinderGeometry(0.08, 0.08, 0.8, 8);
-            const legMaterial = new THREE.MeshStandardMaterial({ color: 0x654321, roughness: 0.7 });
-
+            const legGeometry = new THREE.CylinderGeometry(0.1, 0.1, 0.8, 8); // Высота ног
+            
             const frontLeftLeg = new THREE.Mesh(legGeometry, legMaterial);
-            frontLeftLeg.position.set(0.5, 0.4, 0.3);
+            frontLeftLeg.position.set(0.5, 0.4, 0.3); // Позиция ног (Y-координата - половина высоты ноги)
             frontLeftLeg.castShadow = true;
             frontLeftLeg.receiveShadow = true;
             deerGroup.add(frontLeftLeg);
 
-            const frontRightLeg = new THREE.Mesh(legGeometry, legMaterial);
+            const frontRightLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.8, 8), legMaterial);
             frontRightLeg.position.set(0.5, 0.4, -0.3);
             frontRightLeg.castShadow = true;
             frontRightLeg.receiveShadow = true;
             deerGroup.add(frontRightLeg);
 
-            const backLeftLeg = new THREE.Mesh(legGeometry, legMaterial);
+            const backLeftLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.8, 8), legMaterial);
             backLeftLeg.position.set(-0.5, 0.4, 0.3);
             backLeftLeg.castShadow = true;
             backLeftLeg.receiveShadow = true;
             deerGroup.add(backLeftLeg);
 
-            const backRightLeg = new THREE.Mesh(legGeometry, legMaterial);
+            const backRightLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.8, 8), legMaterial);
             backRightLeg.position.set(-0.5, 0.4, -0.3);
             backRightLeg.castShadow = true;
             backRightLeg.receiveShadow = true;
@@ -2241,6 +2254,200 @@
                 flowerGroup.rotation.y = Math.random() * Math.PI * 2; // Случайное вращение
                 flowerGroup.scale.setScalar(0.8 + Math.random() * 0.4); // Случайный размер
                 scene.add(flowerGroup);
+            }
+        }
+
+        /**
+         * Создает шезлонг.
+         * @param {number} x - Позиция X.
+         * @param {number} y - Позиция Y.
+         * @param {number} z - Позиция Z.
+         * @param {number} rotationY - Вращение по оси Y.
+         */
+        function createSunLounger(x, y, z, rotationY) {
+            const loungerGroup = new THREE.Group();
+            const woodMaterial = new THREE.MeshStandardMaterial({ color: 0x8B4513, roughness: 0.7 }); // Дерево
+            const fabricMaterial = new THREE.MeshStandardMaterial({ color: 0xADD8E6, roughness: 0.5 }); // Светло-голубая ткань
+
+            // Сиденье
+            const seatGeometry = new THREE.BoxGeometry(1.5, 0.05, 0.6);
+            const seat = new THREE.Mesh(seatGeometry, fabricMaterial);
+            seat.position.y = 0.2;
+            loungerGroup.add(seat);
+
+            // Спинка (поднятая)
+            const backGeometry = new THREE.BoxGeometry(0.6, 0.05, 0.6);
+            const back = new THREE.Mesh(backGeometry, fabricMaterial);
+            back.position.set(-0.45, 0.35, 0);
+            back.rotation.x = Math.PI / 4; // Наклон спинки
+            loungerGroup.add(back);
+
+            // Ножки
+            const legGeometry = new THREE.BoxGeometry(0.05, 0.2, 0.05);
+            const leg1 = new THREE.Mesh(legGeometry, woodMaterial);
+            leg1.position.set(0.6, 0.1, 0.25);
+            loungerGroup.add(leg1);
+            const leg2 = new THREE.Mesh(legGeometry, woodMaterial);
+            leg2.position.set(0.6, 0.1, -0.25);
+            loungerGroup.add(leg2);
+            const leg3 = new THREE.Mesh(legGeometry, woodMaterial);
+            leg3.position.set(-0.6, 0.1, 0.25);
+            loungerGroup.add(leg3);
+            const leg4 = new THREE.Mesh(legGeometry, woodMaterial);
+            leg4.position.set(-0.6, 0.1, -0.25);
+            loungerGroup.add(leg4);
+
+            loungerGroup.position.set(x, y, z);
+            loungerGroup.rotation.y = rotationY;
+            scene.add(loungerGroup);
+        }
+
+        /**
+         * Создает пляжный зонтик.
+         * @param {number} x - Позиция X.
+         * @param {number} y - Позиция Y.
+         * @param {number} z - Позиция Z.
+         * @param {number} rotationY - Вращение по оси Y.
+         */
+        function createUmbrella(x, y, z, rotationY) {
+            const umbrellaGroup = new THREE.Group();
+            const poleMaterial = new THREE.MeshStandardMaterial({ color: 0x8B4513, roughness: 0.7 }); // Дерево
+            const canopyMaterial = new THREE.MeshStandardMaterial({ color: 0xFFD700, roughness: 0.5 }); // Золотой/желтый купол
+
+            // Ствол
+            const poleGeometry = new THREE.CylinderGeometry(0.05, 0.05, 2.0, 8);
+            const pole = new THREE.Mesh(poleGeometry, poleMaterial);
+            pole.position.y = 1.0;
+            umbrellaGroup.add(pole);
+
+            // Купол зонтика (конус)
+            const canopyGeometry = new THREE.ConeGeometry(1.0, 0.5, 16); // Широкий, плоский конус
+            const canopy = new THREE.Mesh(canopyGeometry, canopyMaterial);
+            canopy.position.y = 2.0;
+            umbrellaGroup.add(canopy);
+
+            umbrellaGroup.position.set(x, y, z);
+            umbrellaGroup.rotation.y = rotationY;
+            scene.add(umbrellaGroup);
+        }
+
+        /**
+         * Создает грибы.
+         */
+        function createMushrooms() {
+            const numMushrooms = 30;
+            const mushroomCapMaterial = new THREE.MeshStandardMaterial({ color: 0x8B0000, roughness: 0.7 }); // Красная шляпка
+            const mushroomStemMaterial = new THREE.MeshStandardMaterial({ color: 0xFFF5EE, roughness: 0.8 }); // Белая ножка
+
+            for (let i = 0; i < numMushrooms; i++) {
+                const mushroomGroup = new THREE.Group();
+                let mushroomX, mushroomZ;
+                let isValidPosition = false;
+
+                while (!isValidPosition) {
+                    mushroomX = -forestRange + Math.random() * (forestRange * 2);
+                    mushroomZ = -forestRange + Math.random() * (forestRange * 2);
+
+                    // Проверяем, не слишком ли близко к дому, озеру, другим постройкам
+                    const distanceToHouse = Math.sqrt(Math.pow(mushroomX, 2) + Math.pow(mushroomZ, 2));
+                    const distanceToLake = Math.sqrt(Math.pow(mushroomX - lakeCenterX, 2) + Math.pow(mushroomZ - lakeCenterZ, 2));
+                    const distanceToBarn = Math.sqrt(Math.pow(mushroomX - (-40), 2) + Math.pow(mushroomZ - 40, 2));
+                    const distanceToQuarry = Math.sqrt(Math.pow(mushroomX - 40, 2) + Math.pow(mushroomZ - (-40), 2));
+
+                    if (distanceToHouse > 6 && distanceToLake > (lakeRadius + 6) && distanceToBarn > 6 && distanceToQuarry > 6) {
+                        isValidPosition = true;
+                    }
+                }
+
+                // Ножка
+                const stemHeight = 0.2 + Math.random() * 0.1;
+                const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.08, stemHeight, 8), mushroomStemMaterial);
+                stem.position.y = stemHeight / 2;
+                mushroomGroup.add(stem);
+
+                // Шляпка
+                const capRadius = 0.15 + Math.random() * 0.1;
+                const cap = new THREE.Mesh(new THREE.SphereGeometry(capRadius, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), mushroomCapMaterial);
+                cap.position.y = stemHeight + capRadius / 2 - 0.02; // Немного перекрывает ножку
+                mushroomGroup.add(cap);
+
+                mushroomGroup.position.set(mushroomX, 0, mushroomZ);
+                mushroomGroup.rotation.y = Math.random() * Math.PI * 2;
+                mushroomGroup.scale.setScalar(0.8 + Math.random() * 0.4);
+                scene.add(mushroomGroup);
+            }
+        }
+
+        /**
+         * Создает большие валуны.
+         */
+        function createBoulders() {
+            const numBoulders = 15;
+            const boulderMaterial = new THREE.MeshStandardMaterial({ color: 0x696969, roughness: 0.9 }); // Темно-серый
+
+            for (let i = 0; i < numBoulders; i++) {
+                let boulderX, boulderZ;
+                let isValidPosition = false;
+
+                while (!isValidPosition) {
+                    boulderX = -forestRange + Math.random() * (forestRange * 2);
+                    boulderZ = -forestRange + Math.random() * (forestRange * 2);
+
+                    const distanceToHouse = Math.sqrt(Math.pow(boulderX, 2) + Math.pow(boulderZ, 2));
+                    const distanceToLake = Math.sqrt(Math.pow(boulderX - lakeCenterX, 2) + Math.pow(boulderZ - lakeCenterZ, 2));
+                    const distanceToBarn = Math.sqrt(Math.pow(boulderX - (-40), 2) + Math.pow(boulderZ - 40, 2));
+                    const distanceToQuarry = Math.sqrt(Math.pow(boulderX - 40, 2) + Math.pow(boulderZ - (-40), 2));
+
+                    if (distanceToHouse > 8 && distanceToLake > (lakeRadius + 8) && distanceToBarn > 8 && distanceToQuarry > 8) {
+                        isValidPosition = true;
+                    }
+                }
+
+                const size = 1.5 + Math.random() * 1.5; // Размеры от 1.5 до 3
+                const boulderGeometry = new THREE.DodecahedronGeometry(size, 0); // Более органическая форма
+                const boulder = new THREE.Mesh(boulderGeometry, boulderMaterial);
+                boulder.position.set(boulderX, size / 2, boulderZ);
+                boulder.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
+                boulder.castShadow = true;
+                boulder.receiveShadow = true;
+                scene.add(boulder);
+            }
+        }
+
+        /**
+         * Создает упавшие бревна.
+         */
+        function createFallenLogs() {
+            const numFallenLogs = 20;
+            const logMaterial = new THREE.MeshStandardMaterial({ color: 0x5C4033, roughness: 0.8 }); // Темно-коричневый
+
+            for (let i = 0; i < numFallenLogs; i++) {
+                let logX, logZ;
+                let isValidPosition = false;
+
+                while (!isValidPosition) {
+                    logX = -forestRange + Math.random() * (forestRange * 2);
+                    logZ = -forestRange + Math.random() * (forestRange * 2);
+
+                    const distanceToHouse = Math.sqrt(Math.pow(logX, 2) + Math.pow(logZ, 2));
+                    const distanceToLake = Math.sqrt(Math.pow(logX - lakeCenterX, 2) + Math.pow(logZ - lakeCenterZ, 2));
+                    const distanceToBarn = Math.sqrt(Math.pow(logX - (-40), 2) + Math.pow(logZ - 40, 2));
+                    const distanceToQuarry = Math.sqrt(Math.pow(logX - 40, 2) + Math.pow(logZ - (-40), 2));
+
+                    if (distanceToHouse > 5 && distanceToLake > (lakeRadius + 5) && distanceToBarn > 5 && distanceToQuarry > 5) {
+                        isValidPosition = true;
+                    }
+                }
+
+                const length = 2 + Math.random() * 2; // Длина от 2 до 4
+                const radius = 0.2 + Math.random() * 0.1; // Радиус от 0.2 до 0.3
+                const fallenLogGeometry = new THREE.CylinderGeometry(radius, radius, length, 8);
+                const fallenLog = new THREE.Mesh(fallenLogGeometry, logMaterial);
+                fallenLog.position.set(logX, radius, logZ);
+                fallenLog.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI); // Случайное вращение
+                fallenLog.castShadow = true;
+                fallenLog.receiveShadow = true;
+                scene.add(fallenLog);
             }
         }
 
@@ -2368,14 +2575,13 @@
             });
 
             // Анимация рыбы
-            const lakeCenter = new THREE.Vector3(60, 0.01, 0); // Масштабировано
-            const fishBoundaryRadius = 36; // Масштабировано
+            const currentLakeRadius = lakeRadius; // Используем глобальную переменную
             fish.forEach(f => {
                 f.position.add(f.userData.velocity);
                 
-                const distanceToCenter = f.position.distanceTo(lakeCenter);
-                if (distanceToCenter > fishBoundaryRadius) { 
-                    const directionToCenter = new THREE.Vector3().subVectors(lakeCenter, f.position).normalize();
+                const distanceToCenter = f.position.distanceTo(new THREE.Vector3(lakeCenterX, f.position.y, lakeCenterZ));
+                if (distanceToCenter > currentLakeRadius * 1.2) { 
+                    const directionToCenter = new THREE.Vector3().subVectors(new THREE.Vector3(lakeCenterX, f.position.y, lakeCenterZ), f.position).normalize();
                     f.userData.velocity.copy(directionToCenter).multiplyScalar(0.025 + Math.random() * 0.01); 
                     
                     f.userData.velocity.x += (Math.random() - 0.5) * 0.005; 
@@ -2427,8 +2633,8 @@
             clouds.forEach(cloud => {
                 cloud.position.x += cloud.userData.speed;
                 // Заворачиваем облака вокруг мира
-                if (cloud.position.x > 100) cloud.position.x = -100;
-                if (cloud.position.x < -100) cloud.position.x = 100;
+                if (cloud.position.x > forestRange + 10) cloud.position.x = -forestRange - 10; 
+                if (cloud.position.x < -forestRange - 10) cloud.position.x = forestRange + 10; 
             });
 
             // Анимация птицы
@@ -2470,7 +2676,7 @@
          */
         function updatePlayer() {
             let isMoving = false;
-            const speed = keys['ShiftLeft'] || keys['ShiftRight'] ? 0.15 : 0.08;
+            const speed = keys['ShiftLeft'] || keys['ShiftRight'] ? 0.15 : 0.08; 
             const moveDirection = new THREE.Vector3(); 
             const cameraDirection = new THREE.Vector3();
             camera.getWorldDirection(cameraDirection); 
@@ -2524,8 +2730,8 @@
             }
 
             // Ограничиваем позицию игрока в пределах границ сцены
-            playerPosition.x = Math.max(-90, Math.min(90, playerPosition.x)); // Удвоенные границы
-            playerPosition.z = Math.max(-90, Math.min(90, playerPosition.z)); // Удвоенные границы
+            playerPosition.x = Math.max(-forestRange, Math.min(forestRange, playerPosition.x)); 
+            playerPosition.z = Math.max(-forestRange, Math.min(forestRange, playerPosition.z)); 
 
             player.position.copy(playerPosition);
         }
@@ -2534,9 +2740,9 @@
         // Эта функция вызывается один раз, когда окно полностью загрузится.
         function init() {
             scene = new THREE.Scene();
-            scene.fog = new THREE.Fog(daySettings.fogColor, 20, 200); // Скорректированный туман: ближний 20, дальний 200
+            scene.fog = new THREE.Fog(daySettings.fogColor, 20, 200); 
 
-            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000); 
 
             renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
@@ -2566,6 +2772,9 @@
             createFireflies(); // Добавляем светлячков
             createDenseForestWithDeer(); // Создаем густой лес с оленями
             createFlowers(); // Создаем цветы
+            createMushrooms(); // Добавляем грибы
+            createBoulders(); // Добавляем большие валуны
+            createFallenLogs(); // Добавляем упавшие бревна
 
             // Создаем сарайчик (лесопилку)
             const barn = createBarn();
@@ -2576,6 +2785,11 @@
             const quarry = createQuarry();
             createStoneDropOffPile(quarry);
             
+            // Добавляем шезлонг и зонтик возле озера
+            // Позиция шезлонга и зонтика теперь за камышами
+            createSunLounger(lakeCenterX + lakeRadius + lakeReedsOffset + sunLoungerOffset, 0, lakeCenterZ + 5, Math.PI / 4); 
+            createUmbrella(lakeCenterX + lakeRadius + lakeReedsOffset + sunLoungerOffset, 0, lakeCenterZ + 5, Math.PI / 4); 
+
             // Инициализируем освещение (создаем источники света)
             initializeLighting(); 
             // Настраиваем элементы управления
