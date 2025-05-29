@@ -65,7 +65,7 @@
             left: 20px;
             z-index: 100;
             background: rgba(255, 255, 255, 0.9);
-            padding: 10px; /* Reduced padding */
+            padding: 10px; /* Уменьшен padding */
             border-radius: 10px;
             backdrop-filter: blur(10px);
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
@@ -363,20 +363,20 @@
         </div>
 
         <div id="game-ui">
-            <button id="toggle-inventory-button">📦</button>
-            <button id="toggle-crafting-button">🛠️</button>
+            <button id="toggle-inventory-button">📦 Инвентарь</button>
+            <button id="toggle-crafting-button">🛠️ Крафт</button>
         </div>
 
         <div id="inventory-ui">
             <h3>📦 Инвентарь</h3>
             <ul id="inventory-list">
-                </ul>
+            </ul>
         </div>
 
         <div id="crafting-ui">
             <h3>🛠️ Крафт</h3>
             <div id="crafting-recipes">
-                </div>
+            </div>
             <button id="crafting-close-button">✖</button>
         </div>
     </div>
@@ -425,7 +425,6 @@
         let transitionProgress = 1; // 1 = день, 0 = ночь
         const transitionSpeed = 0.02; // Скорость перехода
         
-
         let isSliderDragging = false; // Флаг для отслеживания перетаскивания ползунка
         let isManualTimeControl = true; // Игра всегда начинается днем и остается днем, пока пользователь не изменит ползунок
 
@@ -690,6 +689,7 @@
             const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
             body.position.y = 0.6; 
             body.castShadow = true;
+            body.receiveShadow = true;
             player.add(body);
 
             // Голова
@@ -808,7 +808,7 @@
          */
         function createTrees() {
             const numDeciduousTrees = 60; 
-            const numFirTrees = 80;      
+            const numFirTrees = 80;     
 
             // Определяем ограничивающий прямоугольник дома для обнаружения столкновений
             const houseMinX = -2;
@@ -869,7 +869,7 @@
                     // Проверяем, не слишком ли дерево близко к сарайчику
                     const isNearBarn = (treeX >= barnMinX - barnBuffer && treeX <= barnMaxX + barnBuffer &&
                                          treeZ >= barnMinZ - barnBuffer && treeZ <= barnMaxZ + barnBuffer);
-                    
+
                     // Проверяем, не слишком ли дерево близко к каменоломне
                     const isNearQuarry = (treeX >= quarryMinX - quarryBuffer && treeX <= quarryMaxX + quarryBuffer &&
                                           treeZ >= quarryMinZ - quarryBuffer && treeZ <= quarryMaxZ + quarryBuffer);
@@ -2324,7 +2324,7 @@
                         playerInventory[block.userData.type] = (playerInventory[block.userData.type] || 0) + 1;
                         console.log(`Предмет ${block.userData.type} подобран с земли и добавлен в инвентарь.`);
                         pickedUp = true;
-                        break;
+                        break; 
                     }
                 }
 
@@ -2544,7 +2544,7 @@
                     let foliageMesh;
 
                     foliageGeometry = new THREE.ConeGeometry(1.5, 2, 8); 
-                    foliageMesh = new THREE.Mesh(foliageGeometry, firFoliageMaterial); /* Corrected typo here */
+                    foliageMesh = new THREE.Mesh(foliageGeometry, firFoliageMaterial); 
                     foliageMesh.position.y = 2.5;
                     foliageMesh.castShadow = true;
                     tree.add(foliageMesh);
@@ -3385,7 +3385,7 @@
          */
         function updatePlayer() {
             let isMoving = false;
-            const speed = keys['ShiftLeft'] || keys['ShiftRight'] ? 0.3 : 0.08; // Doubled running speed
+            const speed = keys['ShiftLeft'] || keys['ShiftRight'] ? 0.3 : 0.08; // Удвоенная скорость бега
             const moveDirection = new THREE.Vector3(); 
             const cameraDirection = new THREE.Vector3();
             camera.getWorldDirection(cameraDirection); 
@@ -3896,7 +3896,7 @@
             createGround();
             createTrees(); // Теперь эта функция создает все лиственные и еловые деревья как собираемые
             createRocks(); // Теперь эта функция создает все камни как собираемые
-            createLake();   
+            createLake();    
             createSmokeParticles();
             createLakeVegetation(); 
             createPierAndBoat(); 
