@@ -343,7 +343,7 @@
 <body>
     <div id="container">
         <div id="controls">
-            <h3 id="toggle-controls">🏠 <span id="controls-toggle-icon">▶</span></h3>
+            <h3 id="toggle-controls">⚙️ <span id="controls-toggle-icon">▶</span></h3>
             <div id="controls-content">
                 <p>🖱️ Мышь: поворот камеры</p>
                 <p>🔄 Колесо: приближение</p>
@@ -483,7 +483,8 @@
             ore: 0,
             plank: 0,
             brick: 0,
-            'small-wall': 0
+            'small-wall': 0,
+            'basic-pickaxe': 0 // Добавлено для отслеживания кирки в инвентаре
         };
 
         const craftingRecipes = [
@@ -924,7 +925,7 @@
                 tree.scale.setScalar(0.7 + Math.random() * 0.6); 
                 tree.userData.isCollectible = true; // Помечаем, что это дерево, с которого можно взять бревно
                 tree.userData.type = 'log'; // Тип ресурса
-                tree.userData.logsRemaining = 10; // Изначально имеет 10 бревен
+                tree.userData.collectibleAmount = 10; // Изначально имеет 10 бревен (было logsRemaining)
                 tree.userData.originalFoliage = tree.children.filter(c => c.isMesh && c.geometry.type === 'SphereGeometry'); // Сохраняем ссылки на листву
                 collectibleTrees.push(tree); // Добавляем в массив собираемых деревьев
                 scene.add(tree);
@@ -1008,7 +1009,7 @@
                 firTree.scale.setScalar(0.8 + Math.random() * 0.7); 
                 firTree.userData.isCollectible = true; // Помечаем, что это дерево, с которого можно взять бревно
                 firTree.userData.type = 'log'; // Тип ресурса
-                firTree.userData.logsRemaining = 10; // Изначально имеет 10 бревен
+                firTree.userData.collectibleAmount = 10; // Изначально имеет 10 бревен (было logsRemaining)
                 firTree.userData.originalFoliage = firTree.children.filter(c => c.isMesh && c.geometry.type.includes('ConeGeometry')); // Сохраняем ссылки на листву
                 collectibleTrees.push(firTree); // Добавляем в массив собираемых деревьев
                 scene.add(firTree);
@@ -1953,7 +1954,7 @@
         }
 
         /**
-         * Создает один камень, который может быть подобран игроком.
+         * Создает один камень, который может быть подобрано игроком.
          * @returns {THREE.Mesh} Меш камня.
          */
         function createCollectibleStone() {
@@ -2266,47 +2267,37 @@
             if (playerHasResource) {
                 // Игрок держит ресурс, пытается выгрузить его
                 let deposited = false;
+                // Проверяем, является ли текущий ресурс "складируемым" (бревно, камень)
                 if (currentResourceType === 'log') {
-                    // Попытка выгрузить бревно у поленницы сарайчика (лесопилки)
                     const distanceToLogPile = playerPosition.distanceTo(logDropOffPileGroup.position);
-                    console.log('Игрок держит бревно. Расстояние до поленницы (для выгрузки): ' + distanceToLogPile.toFixed(2));
                     if (distanceToLogPile < interactDistance + 2) { 
                         player.userData.hand.remove(currentHeldResource);
-                        // currentHeldResource.geometry.dispose(); // Освобождаем память
-                        // currentHeldResource.material.dispose();
-                        // scene.remove(currentHeldResource); // Удаляем из сцены, так как он больше не нужен как отдельный объект
                         playerInventory.log++;
-                        addLogToPile(currentHeldResource); // Добавляем в кучу
+                        addLogToPile(currentHeldResource); 
                         console.log('Бревно выгружено! Всего собрано: ' + playerInventory.log);
                         deposited = true;
                     } else {
-                        // Игрок не рядом с поленницей, размещаем бревно для строительства
                         player.userData.hand.remove(currentHeldResource);
                         placeResourceOnGround(currentHeldResource, playerPosition, currentResourceType);
-                        deposited = true; // Считаем размещение как успешное действие
+                        deposited = true; 
                     }
                 } else if (currentResourceType === 'stone') {
-                    // Попытка выгрузить камень у кучи камней каменоломни
                     const distanceToStonePile = playerPosition.distanceTo(stoneDropOffPileGroup.position);
-                    console.log('Игрок держит камень. Расстояние до кучи камней (для выгрузки): ' + distanceToStonePile.toFixed(2));
                     if (distanceToStonePile < interactDistance + 2) { 
                         player.userData.hand.remove(currentHeldResource);
-                        // currentHeldResource.geometry.dispose();
-                        // currentHeldResource.material.dispose();
-                        // scene.remove(currentHeldResource);
                         playerInventory.stone++;
                         addStoneToPile(currentHeldResource);
                         console.log('Камень выгружен! Всего собрано: ' + playerInventory.stone);
                         deposited = true;
                     } else {
-                        // Игрок не рядом с кучей камней, размещаем камень для строительства
                         player.userData.hand.remove(currentHeldResource);
                         placeResourceOnGround(currentHeldResource, playerPosition, currentResourceType);
-                        deposited = true; // Считаем размещение как успешное действие
+                        deposited = true; 
                     }
-                } else if (currentResourceType === 'plank' || currentResourceType === 'brick' || currentResourceType === 'small-wall') {
-                    // Размещаем скрафченные предметы на земле
+                } else if (['plank', 'brick', 'small-wall', 'berry', 'flower', 'mushroom', 'ore', 'basic-pickaxe'].includes(currentResourceType)) {
+                    // Размещаем скрафченные предметы или другие предметы на землю
                     player.userData.hand.remove(currentHeldResource);
+                    // Для предметов, которые не являются "складируемыми" в кучу, просто размещаем их на землю
                     placeResourceOnGround(currentHeldResource, playerPosition, currentResourceType);
                     deposited = true;
                 }
@@ -2326,23 +2317,14 @@
                     const block = placedBuildingBlocks[i];
                     const distanceToBlock = playerPosition.distanceTo(block.position);
                     if (distanceToBlock < interactDistance) {
-                        currentHeldResource = block; // Подбираем сам меш
-                        currentResourceType = block.userData.type;
+                        // Удаляем блок из сцены и из массива placedBuildingBlocks
+                        scene.remove(block);
+                        placedBuildingBlocks.splice(i, 1);
                         
-                        // Сбрасываем позицию и вращение, чтобы он появился в руке корректно
-                        currentHeldResource.position.set(0, 0, 0); 
-                        if (currentResourceType === 'log' || currentResourceType === 'plank' || currentResourceType === 'small-wall') {
-                            currentHeldResource.rotation.set(0, 0, Math.PI / 2); // Горизонтально в руке
-                        } else {
-                            currentHeldResource.rotation.set(0, 0, 0); // Без случайного вращения в руке
-                        }
-
-                        player.userData.hand.add(currentHeldResource); // Добавляем в руку
-                        // Важно: не удаляем из сцены, так как он уже был частью сцены, просто меняем родителя
-                        placedBuildingBlocks.splice(i, 1); // Удаляем из массива размещенных блоков
-                        playerHasResource = true;
+                        // Добавляем предмет в инвентарь (не в руку)
+                        playerInventory[block.userData.type] = (playerInventory[block.userData.type] || 0) + 1;
+                        console.log(`Предмет ${block.userData.type} подобран с земли и добавлен в инвентарь.`);
                         pickedUp = true;
-                        console.log(`Ресурс ${currentResourceType} подобран с земли.`);
                         break;
                     }
                 }
@@ -2847,7 +2829,7 @@
             leg3.receiveShadow = true;
             loungerGroup.add(leg3);
             const leg4 = new THREE.Mesh(legGeometry, woodMaterialLounger);
-            leg4.position.set(-0.6, 0.1, -0.25);
+            leg4.position.set(0.6, 0.1, -0.25);
             leg4.castShadow = true;
             leg4.receiveShadow = true;
             loungerGroup.add(leg4);
@@ -3535,21 +3517,141 @@
                 case 'small-wall':
                     heldMesh = createCraftedSmallWall();
                     break;
+                case 'berry':
+                    heldMesh = createHeldBerry();
+                    isPlacable = false; // Ягоды не размещаются, а используются/потребляются
+                    break;
+                case 'flower':
+                    heldMesh = createHeldFlower();
+                    isPlacable = false;
+                    break;
+                case 'mushroom':
+                    heldMesh = createHeldMushroom();
+                    isPlacable = false;
+                    break;
+                case 'ore':
+                    heldMesh = createHeldOre();
+                    isPlacable = false;
+                    break;
+                case 'basic-pickaxe':
+                    heldMesh = createHeldBasicPickaxe();
+                    isPlacable = false; // Инструмент не размещается, а экипируется
+                    break;
                 default:
-                    isPlacable = false; // Предмет не может быть размещен в 3D мире (например, ягоды, руда, инструменты)
+                    isPlacable = false; // Предмет не может быть размещен в 3D мире
                     console.log(`Предмет ${itemType} не может быть взят в руку.`);
                     break;
             }
 
-            if (isPlacable && heldMesh) {
+            if (heldMesh) { // Если предмет имеет 3D-модель для удержания
                 player.userData.hand.add(heldMesh);
                 currentHeldResource = heldMesh;
-                playerHasResource = true;
                 currentResourceType = itemType;
+                playerHasResource = true;
                 playerInventory[itemType]--; // Уменьшаем количество в инвентаре
                 updateInventoryUI(); // Обновляем инвентарь UI
                 console.log(`Предмет ${itemType} взят в руку.`);
             }
+        }
+
+        /**
+         * Создает меш ягоды для удержания игроком.
+         * @returns {THREE.Mesh} Меш ягоды.
+         */
+        function createHeldBerry() {
+            const berryGeometry = new THREE.SphereGeometry(0.1, 8, 8);
+            const berryMaterial = new THREE.MeshStandardMaterial({ color: 0xFF0000, roughness: 0.5 });
+            const berry = new THREE.Mesh(berryGeometry, berryMaterial);
+            berry.userData.type = 'berry';
+            return berry;
+        }
+
+        /**
+         * Создает меш цветка для удержания игроком.
+         * @returns {THREE.Mesh} Меш цветка.
+         */
+        function createHeldFlower() {
+            const flowerGroup = new THREE.Group();
+            const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.2, 4), new THREE.MeshStandardMaterial({ color: 0x556B2F }));
+            stem.position.y = 0.1;
+            flowerGroup.add(stem);
+
+            const petalMaterial = new THREE.MeshStandardMaterial({ color: 0xFFC0CB, roughness: 0.5 });
+            const centerMaterial = new THREE.MeshStandardMaterial({ color: 0xFFF000, roughness: 0.5 });
+            const petalGeometry = new THREE.SphereGeometry(0.05, 8, 8);
+            const centerGeometry = new THREE.SphereGeometry(0.03, 8, 8);
+
+            for (let j = 0; j < 5; j++) {
+                const angle = (j / 5) * Math.PI * 2;
+                const petal = new THREE.Mesh(petalGeometry, petalMaterial);
+                petal.position.set(Math.cos(angle) * 0.07, 0.2, Math.sin(angle) * 0.07);
+                flowerGroup.add(petal);
+            }
+            const center = new THREE.Mesh(centerGeometry, centerMaterial);
+            center.position.y = 0.2;
+            flowerGroup.add(center);
+
+            flowerGroup.userData.type = 'flower';
+            return flowerGroup;
+        }
+
+        /**
+         * Создает меш гриба для удержания игроком.
+         * @returns {THREE.Mesh} Меш гриба.
+         */
+        function createHeldMushroom() {
+            const mushroomGroup = new THREE.Group();
+            const mushroomCapMaterial = new THREE.MeshStandardMaterial({ color: 0x8B0000, roughness: 0.7 });
+            const mushroomStemMaterial = new THREE.MeshStandardMaterial({ color: 0xFFF5EE, roughness: 0.8 });
+
+            const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.08, 0.2, 8), mushroomStemMaterial);
+            stem.position.y = 0.1;
+            mushroomGroup.add(stem);
+
+            const cap = new THREE.Mesh(new THREE.SphereGeometry(0.15, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), mushroomCapMaterial);
+            cap.position.y = 0.2 - 0.02;
+            mushroomGroup.add(cap);
+
+            mushroomGroup.userData.type = 'mushroom';
+            return mushroomGroup;
+        }
+
+        /**
+         * Создает меш руды для удержания игроком.
+         * @returns {THREE.Mesh} Меш руды.
+         */
+        function createHeldOre() {
+            const oreGeometry = new THREE.DodecahedronGeometry(0.2, 0);
+            const oreMaterial = new THREE.MeshStandardMaterial({ color: 0x606060, roughness: 0.9, metalness: 0.7 });
+            const ore = new THREE.Mesh(oreGeometry, oreMaterial);
+            ore.userData.type = 'ore';
+            return ore;
+        }
+
+        /**
+         * Создает меш базовой кирки для удержания игроком.
+         * @returns {THREE.Mesh} Меш кирки.
+         */
+        function createHeldBasicPickaxe() {
+            const pickaxeGroup = new THREE.Group();
+            const handleMaterial = new THREE.MeshStandardMaterial({ color: 0x8B4513, roughness: 0.7 });
+            const headMaterial = new THREE.MeshStandardMaterial({ color: 0xA9A9A9, roughness: 0.7, metalness: 0.2 });
+
+            // Рукоять
+            const handleGeometry = new THREE.CylinderGeometry(0.05, 0.05, 0.8, 8);
+            const handle = new THREE.Mesh(handleGeometry, handleMaterial);
+            handle.position.y = 0.4;
+            pickaxeGroup.add(handle);
+
+            // Голова кирки
+            const headGeometry = new THREE.BoxGeometry(0.2, 0.1, 0.6);
+            const head = new THREE.Mesh(headGeometry, headMaterial);
+            head.position.set(0, 0.8, 0);
+            head.rotation.x = Math.PI / 2; // Поворачиваем, чтобы выглядела как кирка
+            pickaxeGroup.add(head);
+
+            pickaxeGroup.userData.type = 'basic-pickaxe';
+            return pickaxeGroup;
         }
 
 
@@ -3699,9 +3801,10 @@
                         currentResourceType = 'small-wall';
                         playerInventory['small-wall']--;
                     }
+                } else if (recipe.output.type === 'basic-pickaxe') {
+                    // Кирка не размещается, просто добавляется в инвентарь
+                    // Если захотим, можно добавить слот для инструмента и возможность его "экипировать"
                 }
-                // Для инструментов (как кирка), просто добавляем в инвентарь, не в руку
-                // Если захотим, можно добавить слот для инструмента и возможность его "экипировать"
 
                 updateInventoryUI();
                 updateCraftingRecipesUI();
