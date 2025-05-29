@@ -36,6 +36,11 @@
             margin: 0 0 10px 0;
             color: #333;
             font-size: 16px;
+            cursor: pointer; /* Добавлено для кликабельности */
+        }
+
+        #controls-content {
+            display: block; /* По умолчанию отображается */
         }
 
         #controls p {
@@ -133,20 +138,31 @@
             right: 20px;
             z-index: 100;
             background: rgba(255, 255, 255, 0.9);
-            padding: 15px;
+            padding: 10px; /* Уменьшен padding */
             border-radius: 10px;
             backdrop-filter: blur(10px);
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
             color: #333;
-            font-size: 16px;
+            font-size: 14px; /* Уменьшен шрифт */
             font-weight: bold;
+            display: flex; /* Используем flexbox */
+            flex-direction: column;
+            align-items: flex-end; /* Выравнивание по правому краю */
+            gap: 5px; /* Уменьшен зазор между элементами */
         }
 
         #resource-counters {
             display: flex;
             flex-direction: column;
             gap: 5px;
-            margin-bottom: 10px;
+            margin-bottom: 0; /* Убран нижний отступ */
+            align-items: flex-end; /* Выравнивание по правому краю */
+        }
+
+        #resource-counters span {
+            display: flex;
+            align-items: center;
+            gap: 5px;
         }
 
         #inventory-ui {
@@ -322,14 +338,16 @@
 <body>
     <div id="container">
         <div id="controls">
-            <h3>🏠 Управление</h3>
-            <p>🖱️ Мышь: поворот камеры</p>
-            <p>🔄 Колесо: приближение</p>
-            <p>🚶 <span class="key">WASD</span> или <span class="key">↑↓←→</span>: движение</p>
-            <p>🏃 <span class="key">Shift</span>: бег</p>
-            <p>🪵 <span class="key">E</span>: Взаимодействие (взять/положить ресурс)</p>
-            <p>📦 <span class="key">I</span>: Инвентарь</p>
-            <p>🛠️ <span class="key">C</span>: Крафт</p>
+            <h3 id="toggle-controls">🏠 Управление <span id="controls-toggle-icon">▼</span></h3>
+            <div id="controls-content">
+                <p>🖱️ Мышь: поворот камеры</p>
+                <p>🔄 Колесо: приближение</p>
+                <p>🚶 <span class="key">WASD</span> или <span class="key">↑↓←→</span>: движение</p>
+                <p>🏃 <span class="key">Shift</span>: бег</p>
+                <p>🪵 <span class="key">E</span>: Взаимодействие (взять/положить ресурс)</p>
+                <p>📦 <span class="key">I</span>: Инвентарь</p>
+                <p>🛠️ <span class="key">C</span>: Крафт</p>
+            </div>
         </div>
 
         <div id="info">
@@ -341,11 +359,11 @@
 
         <div id="game-ui">
             <div id="resource-counters">
-                <span>Бревна собраны: <span id="collectedLogsCount">0</span></span>
-                <span>Камни собраны: <span id="collectedStonesCount">0</span></span>
+                <span>🪵 <span id="collectedLogsCount">0</span></span>
+                <span>🪨 <span id="collectedStonesCount">0</span></span>
             </div>
-            <button id="toggle-inventory-button">Открыть инвентарь</button>
-            <button id="toggle-crafting-button">Открыть крафт</button>
+            <button id="toggle-inventory-button">📦</button>
+            <button id="toggle-crafting-button">🛠️</button>
         </div>
 
         <div id="inventory-ui">
@@ -1208,7 +1226,7 @@
         function createRabbits() {
             const numRabbits = 3; 
             const rabbitMaterial = new THREE.MeshStandardMaterial({ color: 0xF5F5DC, roughness: 0.7 }); 
-            const rabbitScale = 0.6; // Увеличен масштаб для лучшей видимости
+            const rabbitScale = 0.4; // Уменьшен масштаб для лучшей видимости (0.6 / 1.5)
 
             // Определяем ограничивающие прямоугольники/круги дома и озера для обнаружения столкновений
             const houseMinX = -2;
@@ -2169,6 +2187,19 @@
             document.getElementById('toggle-inventory-button').addEventListener('click', toggleInventory);
             document.getElementById('toggle-crafting-button').addEventListener('click', toggleCrafting);
             document.getElementById('crafting-close-button').addEventListener('click', closeCraftingMenu);
+
+            // Обработчик для сворачивания/разворачивания меню управления
+            document.getElementById('toggle-controls').addEventListener('click', () => {
+                const controlsContent = document.getElementById('controls-content');
+                const toggleIcon = document.getElementById('controls-toggle-icon');
+                if (controlsContent.style.display === 'none') {
+                    controlsContent.style.display = 'block';
+                    toggleIcon.textContent = '▼';
+                } else {
+                    controlsContent.style.display = 'none';
+                    toggleIcon.textContent = '▶';
+                }
+            });
         }
 
         /**
@@ -3159,7 +3190,7 @@
                 dayNightIcon.textContent = '☀️';
                 isDayTime = true;
             } else {
-                dayNightIcon.textContent = '🌙';
+                dayNightIcon.textContent = '�';
                 isDayTime = false;
             }
 
