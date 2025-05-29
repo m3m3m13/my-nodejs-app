@@ -40,7 +40,7 @@
         }
 
         #controls-content {
-            display: block; /* По умолчанию отображается */
+            display: none; /* По умолчанию скрыто */
         }
 
         #controls p {
@@ -338,7 +338,7 @@
 <body>
     <div id="container">
         <div id="controls">
-            <h3 id="toggle-controls">🏠 Управление <span id="controls-toggle-icon">▼</span></h3>
+            <h3 id="toggle-controls">🏠 <span id="controls-toggle-icon">▶</span></h3>
             <div id="controls-content">
                 <p>🖱️ Мышь: поворот камеры</p>
                 <p>🔄 Колесо: приближение</p>
@@ -419,10 +419,11 @@
         let collectibleMushrooms = []; // Массив для собираемых грибов
         let placedBuildingBlocks = []; // Новый массив для блоков, размещенных игроком для строительства
 
+        const dayNightCycleDuration = 60 * 60 * 1000; // 60 минут в миллисекундах
+        const halfDayNightCycle = dayNightCycleDuration / 2; // 30 минут
         let transitionProgress = 1; // 1 = день, 0 = ночь
         const transitionSpeed = 0.02; // Скорость перехода
-        const dayNightCycleDuration = 20 * 60 * 1000; // 20 минут в миллисесекундах
-        const halfDayNightCycle = dayNightCycleDuration / 2; // 10 минут
+        
 
         let isSliderDragging = false; // Флаг для отслеживания перетаскивания ползунка
         let isManualTimeControl = false; // Флаг, который становится true, если пользователь вручную изменил ползунок
@@ -681,9 +682,9 @@
         function createPlayer() {
             player = new THREE.Group();
 
-            // Тело
+            // Тело (одежда)
             const bodyGeometry = new THREE.CylinderGeometry(0.3, 0.3, 1.2, 16); // Увеличено количество сегментов
-            const bodyMaterial = new THREE.MeshStandardMaterial({ color: 0x4169E1, roughness: 0.5 });
+            const bodyMaterial = new THREE.MeshStandardMaterial({ color: 0x5DADE2, roughness: 0.5 }); // Цвет рубашки (светло-голубой)
             const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
             body.position.y = 0.6; 
             body.castShadow = true;
@@ -708,6 +709,23 @@
             const rightEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
             rightEye.position.set(0.1, 1.5, 0.2); 
             player.add(rightEye);
+
+            // Рот
+            const mouthGeometry = new THREE.BoxGeometry(0.15, 0.05, 0.05);
+            const mouthMaterial = new THREE.MeshBasicMaterial({ color: 0x8B0000 }); // Красный рот
+            const mouth = new THREE.Mesh(mouthGeometry, mouthMaterial);
+            mouth.position.set(0, 1.35, 0.2); // Под глазами
+            player.add(mouth);
+
+            // Волосы
+            const hairGeometry = new THREE.SphereGeometry(0.3, 16, 16);
+            hairGeometry.scale(1, 0.5, 1); // Приплюснутая сфера для волос
+            const hairMaterial = new THREE.MeshStandardMaterial({ color: 0x8B4513, roughness: 0.7 }); // Коричневые волосы
+            const hair = new THREE.Mesh(hairGeometry, hairMaterial);
+            hair.position.y = 1.6; // Над головой
+            hair.castShadow = true;
+            player.add(hair);
+
 
             // Руки
             const armGeometry = new THREE.CylinderGeometry(0.08, 0.08, 0.8, 8); // Увеличено количество сегментов
@@ -1477,9 +1495,9 @@
                 }
 
                 cloud.position.set(
-                    -forestRange - 10 + Math.random() * (forestRange * 2 + 20), // Диапазон мира
+                    -forestRange + Math.random() * (forestRange * 2 + 20), // Диапазон мира
                     30 + Math.random() * 10,  // Высоко в небе
-                    -forestRange - 10 + Math.random() * (forestRange * 2 + 20)
+                    -forestRange + Math.random() * (forestRange * 2 + 20)
                 );
                 cloud.scale.setScalar(0.5 + Math.random()); // Варьируем размер облака
                 cloud.userData.speed = (Math.random() - 0.5) * 0.05; // Случайная горизонтальная скорость
@@ -3190,7 +3208,7 @@
                 dayNightIcon.textContent = '☀️';
                 isDayTime = true;
             } else {
-                dayNightIcon.textContent = '�';
+                dayNightIcon.textContent = '🌙';
                 isDayTime = false;
             }
 
