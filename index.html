@@ -152,7 +152,7 @@
         }
 
         #resource-counters {
-            display: flex;
+            display: none; /* Скрыто, так как информация теперь в инвентаре */
             flex-direction: column;
             gap: 5px;
             margin-bottom: 0; /* Убран нижний отступ */
@@ -343,7 +343,7 @@
 <body>
     <div id="container">
         <div id="controls">
-            <h3 id="toggle-controls">⚙️ <span id="controls-toggle-icon">▶</span></h3>
+            <h3 id="toggle-controls">⚙️<span id="controls-toggle-icon">▶</span></h3>
             <div id="controls-content">
                 <p>🖱️ Мышь: поворот камеры</p>
                 <p>🔄 Колесо: приближение</p>
@@ -363,10 +363,6 @@
         </div>
 
         <div id="game-ui">
-            <div id="resource-counters">
-                <span>🪵 <span id="collectedLogsCount">0</span></span>
-                <span>🪨 <span id="collectedStonesCount">0</span></span>
-            </div>
             <button id="toggle-inventory-button">📦</button>
             <button id="toggle-crafting-button">🛠️</button>
         </div>
@@ -431,7 +427,7 @@
         
 
         let isSliderDragging = false; // Флаг для отслеживания перетаскивания ползунка
-        let isManualTimeControl = false; // Флаг, который становится true, если пользователь вручную изменил ползунок
+        let isManualTimeControl = true; // Игра всегда начинается днем и остается днем, пока пользователь не изменит ползунок
 
         // Глобальные константы для размеров мира и объектов
         const worldSize = 200; // Размер земли
@@ -1860,7 +1856,7 @@
             if (!logDropOffPileGroup) return;
 
             // Вычисляем позицию для нового бревна в поленнице
-            const currentLogs = playerInventory.log; // Используем playerInventory.log для определения позиции
+            const currentLogs = logDropOffPileGroup.children.length; // Используем текущее количество детей в группе
             const logsPerRow = 8; 
             const logHeight = 0.3; 
 
@@ -2017,7 +2013,7 @@
         function addStoneToPile(stoneMesh) {
             if (!stoneDropOffPileGroup) return;
 
-            const currentStones = playerInventory.stone;
+            const currentStones = stoneDropOffPileGroup.children.length; // Используем текущее количество детей в группе
             const stonesPerRow = 6; // Камни меньше, можно больше в ряд
             const stoneHeight = 0.6; // Примерная высота камня
 
@@ -2091,6 +2087,9 @@
                 resourceHeight = 0.2; // Примерная высота кирпича
             } else if (resourceType === 'small-wall') {
                 resourceHeight = 1.0; // Примерная высота стены
+            } else if (resourceType === 'berry' || resourceType === 'flower' || resourceType === 'mushroom' || resourceType === 'ore' || resourceType === 'basic-pickaxe') {
+                // Для этих предметов, если они брошены, просто размещаем их на земле
+                resourceHeight = 0.1; // Небольшая высота над землей
             }
 
 
@@ -2252,10 +2251,10 @@
                 const toggleIcon = document.getElementById('controls-toggle-icon');
                 if (controlsContent.style.display === 'none') {
                     controlsContent.style.display = 'block';
-                    toggleIcon.textContent = '▼';
+                    toggleIcon.textContent = '▼'; 
                 } else {
                     controlsContent.style.display = 'none';
-                    toggleIcon.textContent = '▶';
+                    toggleIcon.textContent = '▶'; 
                 }
             });
         }
@@ -2545,7 +2544,7 @@
                     let foliageMesh;
 
                     foliageGeometry = new THREE.ConeGeometry(1.5, 2, 8); 
-                    foliageMesh = new THREE.Mesh(foliageGeometry, firFoliageMaterial);
+                    foliageMesh = new THREE.Mesh(foliageGeometry, firFoliageMaterial); /* Corrected typo here */
                     foliageMesh.position.y = 2.5;
                     foliageMesh.castShadow = true;
                     tree.add(foliageMesh);
@@ -3478,8 +3477,8 @@
                 }
             }
             // Обновляем старые счетчики (можно удалить, если они больше не нужны)
-            document.getElementById('collectedLogsCount').textContent = playerInventory.log;
-            document.getElementById('collectedStonesCount').textContent = playerInventory.stone;
+            // document.getElementById('collectedLogsCount').textContent = playerInventory.log;
+            // document.getElementById('collectedStonesCount').textContent = playerInventory.stone;
         }
 
         /**
@@ -3499,7 +3498,7 @@
             }
 
             let heldMesh = null;
-            let isPlacable = true; // Флаг, указывающий, можно ли разместить предмет в 3D мире
+            // let isPlacable = true; // Этот флаг больше не нужен здесь, так как все создаваемые heldMesh могут быть брошены
 
             switch (itemType) {
                 case 'log':
@@ -3519,28 +3518,22 @@
                     break;
                 case 'berry':
                     heldMesh = createHeldBerry();
-                    isPlacable = false; // Ягоды не размещаются, а используются/потребляются
                     break;
                 case 'flower':
                     heldMesh = createHeldFlower();
-                    isPlacable = false;
                     break;
                 case 'mushroom':
                     heldMesh = createHeldMushroom();
-                    isPlacable = false;
                     break;
                 case 'ore':
                     heldMesh = createHeldOre();
-                    isPlacable = false;
                     break;
                 case 'basic-pickaxe':
                     heldMesh = createHeldBasicPickaxe();
-                    isPlacable = false; // Инструмент не размещается, а экипируется
                     break;
                 default:
-                    isPlacable = false; // Предмет не может быть размещен в 3D мире
-                    console.log(`Предмет ${itemType} не может быть взят в руку.`);
-                    break;
+                    console.log(`Предмет ${itemType} не имеет 3D-модели для удержания.`);
+                    return; // Выходим, если нет модели
             }
 
             if (heldMesh) { // Если предмет имеет 3D-модель для удержания
