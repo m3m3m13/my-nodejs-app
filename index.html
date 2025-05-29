@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D Домик - Улучшенная реалистичность</title>
+    <title>3D Домик - Улучшенная реалистичность с крафтом и инвентарем</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
         body {
@@ -127,7 +127,6 @@
             line-height: 1;
         }
 
-
         #game-ui {
             position: absolute;
             top: 20px;
@@ -147,6 +146,176 @@
             display: flex;
             flex-direction: column;
             gap: 5px;
+            margin-bottom: 10px;
+        }
+
+        #inventory-ui {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            z-index: 100;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 15px;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            color: #333;
+            font-size: 14px;
+            display: none; /* Скрыто по умолчанию */
+        }
+
+        #inventory-ui h3 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            color: #333;
+            font-size: 16px;
+        }
+
+        #inventory-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr); /* 2 колонки */
+            gap: 5px;
+        }
+
+        #inventory-list li {
+            background: #f0f0f0;
+            padding: 5px 8px;
+            border-radius: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        #crafting-ui {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 101;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 25px;
+            border-radius: 15px;
+            backdrop-filter: blur(15px);
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
+            color: #333;
+            width: 350px;
+            max-height: 80vh;
+            overflow-y: auto;
+            display: none; /* Скрыто по умолчанию */
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        #crafting-ui h3 {
+            margin-top: 0;
+            margin-bottom: 15px;
+            color: #333;
+            font-size: 20px;
+            text-align: center;
+        }
+
+        .crafting-recipe {
+            display: flex;
+            flex-direction: column;
+            background: #f8f8f8;
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid #e0e0e0;
+            transition: all 0.2s ease-in-out;
+        }
+
+        .crafting-recipe:hover {
+            background: #eef;
+            border-color: #cdd;
+            transform: translateY(-2px);
+        }
+
+        .recipe-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .recipe-header strong {
+            font-size: 16px;
+            color: #555;
+        }
+
+        .recipe-ingredients {
+            font-size: 12px;
+            color: #777;
+            margin-bottom: 10px;
+        }
+
+        .craft-button {
+            padding: 8px 15px;
+            background: linear-gradient(135deg, #4CAF50 0%, #66BB6A 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: all 0.2s ease-in-out;
+            box-shadow: 0 4px 10px rgba(76, 175, 80, 0.3);
+        }
+
+        .craft-button:hover {
+            background: linear-gradient(135deg, #45a049 0%, #5cb860 100%);
+            box-shadow: 0 6px 15px rgba(76, 175, 80, 0.4);
+        }
+
+        .craft-button:disabled {
+            background: #cccccc;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        #crafting-close-button {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #ff4d4d;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            font-size: 18px;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            transition: background 0.2s ease-in-out;
+        }
+
+        #crafting-close-button:hover {
+            background: #cc0000;
+        }
+
+        #toggle-inventory-button, #toggle-crafting-button {
+            padding: 10px 15px;
+            background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: all 0.2s ease-in-out;
+            box-shadow: 0 4px 10px rgba(0, 123, 255, 0.3);
+            margin-top: 10px;
+            width: 100%;
+        }
+
+        #toggle-inventory-button:hover, #toggle-crafting-button:hover {
+            background: linear-gradient(135deg, #0056b3 0%, #004085 100%);
+            box-shadow: 0 6px 15px rgba(0, 123, 255, 0.4);
         }
     </style>
 </head>
@@ -159,6 +328,8 @@
             <p>🚶 <span class="key">WASD</span> или <span class="key">↑↓←→</span>: движение</p>
             <p>🏃 <span class="key">Shift</span>: бег</p>
             <p>🪵 <span class="key">E</span>: Взаимодействие (взять/положить ресурс)</p>
+            <p>📦 <span class="key">I</span>: Инвентарь</p>
+            <p>🛠️ <span class="key">C</span>: Крафт</p>
         </div>
 
         <div id="info">
@@ -173,6 +344,21 @@
                 <span>Бревна собраны: <span id="collectedLogsCount">0</span></span>
                 <span>Камни собраны: <span id="collectedStonesCount">0</span></span>
             </div>
+            <button id="toggle-inventory-button">Открыть инвентарь</button>
+            <button id="toggle-crafting-button">Открыть крафт</button>
+        </div>
+
+        <div id="inventory-ui">
+            <h3>📦 Инвентарь</h3>
+            <ul id="inventory-list">
+                </ul>
+        </div>
+
+        <div id="crafting-ui">
+            <h3>🛠️ Крафт</h3>
+            <div id="crafting-recipes">
+                </div>
+            <button id="crafting-close-button">✖</button>
         </div>
     </div>
 
@@ -203,14 +389,16 @@
         let playerHasResource = false; // Может держать либо бревно, либо камень
         let currentHeldResource = null; // Текущий удерживаемый ресурс (THREE.Mesh)
         let currentResourceType = null; // 'log' или 'stone'
-        let collectedLogsCount = 0;
-        let collectedStonesCount = 0;
         let logDropOffPileGroup = null; // Группа для динамически добавляемых бревен у сарайчика (лесопилки)
         let stoneDropOffPileGroup = null; // Группа для динамически добавляемых камней у каменоломни
         let quarryHouse = null; // Дом каменоломни
         const interactDistance = 3; // Расстояние для взаимодействия (подбора/выгрузки)
         let collectibleTrees = []; // Массив для всех собираемых деревьев
         let collectibleStones = []; // Массив для всех собираемых камней (теперь генерируются в createRocks)
+        let collectibleBerryBushes = []; // Массив для собираемых ягодных кустов
+        let collectibleMetalOres = []; // Массив для собираемых металлических руд
+        let collectibleFlowers = []; // Массив для собираемых цветов
+        let collectibleMushrooms = []; // Массив для собираемых грибов
         let placedBuildingBlocks = []; // Новый массив для блоков, размещенных игроком для строительства
 
         let transitionProgress = 1; // 1 = день, 0 = ночь
@@ -260,6 +448,46 @@
         let textureLoader;
         // Глобальные переменные для текстур
         let grassTexture, grassNormalMap, woodDiffuseTexture, woodBumpTexture;
+
+        // --- Инвентарь и крафт ---
+        let playerInventory = {
+            log: 0,
+            stone: 0,
+            berry: 0,
+            flower: 0,
+            mushroom: 0,
+            ore: 0,
+            plank: 0,
+            brick: 0,
+            'small-wall': 0
+        };
+
+        const craftingRecipes = [
+            {
+                id: 'plank',
+                name: 'Доска',
+                output: { type: 'plank', amount: 4 },
+                ingredients: { log: 1 }
+            },
+            {
+                id: 'brick',
+                name: 'Кирпич',
+                output: { type: 'brick', amount: 2 },
+                ingredients: { stone: 1 }
+            },
+            {
+                id: 'small-wall',
+                name: 'Малая стена',
+                output: { type: 'small-wall', amount: 1 },
+                ingredients: { plank: 2, brick: 2 }
+            },
+            {
+                id: 'basic-pickaxe',
+                name: 'Базовая кирка',
+                output: { type: 'basic-pickaxe', amount: 1 },
+                ingredients: { log: 1, stone: 2 }
+            }
+        ];
 
         // --- Вспомогательные функции (определены до init для правильной области видимости) ---
 
@@ -566,7 +794,7 @@
             const quarryMaxX = 40 + 2;
             const quarryMinZ = -40 - 2;
             const quarryMaxZ = -40 + 2;
-            const quarryBuffer = 3; 
+            const quarryBuffer = 3;
 
 
             // Лиственные деревья
@@ -697,7 +925,7 @@
 
                     // Проверяем, не слишком ли дерево близко к каменоломне
                     const isNearQuarry = (treeX >= quarryMinX - quarryBuffer && treeX <= quarryMaxX + quarryBuffer &&
-                                           treeZ >= quarryMinZ - quarryBuffer && treeZ <= quarryMaxZ + quarryBuffer);
+                                          treeZ >= quarryMinZ - quarryBuffer && treeZ <= quarryMaxZ + quarryBuffer);
 
 
                     if (!isNearHouse && !isNearLake && !isNearBarn && !isNearQuarry) {
@@ -782,6 +1010,7 @@
             const lake = new THREE.Mesh(lakeGeometry, waterMaterial);
             lake.rotation.x = -Math.PI / 2; 
             lake.position.set(lakeCenterX, 0.01, lakeCenterZ); 
+            lake.receiveShadow = true; // Озеро может принимать тени
             scene.add(lake);
 
             // Рыба
@@ -1034,7 +1263,7 @@
 
                     // Проверяем, не слишком ли кролик близко к каменоломне
                     const isNearQuarry = (rabbitX >= quarryMinX - quarryBuffer && rabbitX <= quarryMaxX + quarryBuffer &&
-                                           rabbitZ >= quarryMinZ - quarryBuffer && rabbitZ <= quarryMaxZ + quarryBuffer);
+                                          rabbitZ >= quarryMinZ - quarryBuffer && rabbitZ <= quarryMaxZ + quarryBuffer);
 
 
                     if (!isNearHouse && !isNearLake && !isNearBarn && !isNearQuarry) {
@@ -1172,7 +1401,7 @@
                                          rockZ >= barnMinZ - barnBuffer && rockZ <= barnMaxZ + barnBuffer);
 
                     const isNearQuarry = (rockX >= quarryMinX - quarryBuffer && rockX <= quarryMaxX + quarryBuffer &&
-                                           rockZ >= quarryMinZ - quarryBuffer && rockZ <= quarryMaxZ + quarryBuffer);
+                                          rockZ >= quarryMinZ - quarryBuffer && rockZ <= quarryMaxZ + quarryBuffer);
                     
                     const isNearForest = (rockX >= forestMinX - forestBuffer && rockX <= forestMaxX + forestBuffer &&
                                           rockZ >= forestMinZ - forestBuffer && rockZ <= forestMaxZ + forestBuffer);
@@ -1199,8 +1428,7 @@
                 // Помечаем камень как собираемый
                 rock.userData.isCollectible = true;
                 rock.userData.type = 'stone';
-                rock.userData.logsRemaining = 10; // 10 "ударов" до исчезновения (переименовано для совместимости)
-
+                rock.userData.collectibleAmount = 1; // Один камень за взаимодействие
                 collectibleStones.push(rock); // Добавляем в массив собираемых камней
                 scene.add(rock);
             }
@@ -1380,6 +1608,7 @@
                     lakeCenterZ + Math.sin(angle) * distance
                 );
                 lilyPad.rotation.z = Math.random() * Math.PI * 2; // Случайное вращение
+                lilyPad.scale.setScalar(0.8 + Math.random() * 0.4); // Случайный размер
                 scene.add(lilyPad);
             }
         }
@@ -1557,6 +1786,7 @@
             log.castShadow = true;
             log.receiveShadow = true;
             log.userData.type = 'log'; // Помечаем тип ресурса
+            log.userData.collectibleAmount = 1; // Одно бревно за взаимодействие
             return log;
         }
 
@@ -1568,7 +1798,7 @@
             if (!logDropOffPileGroup) return;
 
             // Вычисляем позицию для нового бревна в поленнице
-            const currentLogs = collectedLogsCount; // Используем collectedLogsCount для определения позиции
+            const currentLogs = playerInventory.log; // Используем playerInventory.log для определения позиции
             const logsPerRow = 8; 
             const logHeight = 0.3; 
 
@@ -1672,6 +1902,7 @@
             stone.castShadow = true;
             stone.receiveShadow = true;
             stone.userData.type = 'stone'; // Помечаем тип ресурса
+            stone.userData.collectibleAmount = 1; // Один камень за взаимодействие
             return stone;
         }
 
@@ -1710,7 +1941,7 @@
         function addStoneToPile(stoneMesh) {
             if (!stoneDropOffPileGroup) return;
 
-            const currentStones = collectedStonesCount;
+            const currentStones = playerInventory.stone;
             const stonesPerRow = 6; // Камни меньше, можно больше в ряд
             const stoneHeight = 0.6; // Примерная высота камня
 
@@ -1778,11 +2009,18 @@
                 resourceHeight = 0.3; // Приблизительный диаметр, когда лежит плашмя
             } else if (resourceType === 'stone') {
                 resourceHeight = resourceMesh.geometry.parameters.radius * 2; // Диаметр камня (сфера)
+            } else if (resourceType === 'plank') {
+                resourceHeight = 0.15; // Примерная толщина доски
+            } else if (resourceType === 'brick') {
+                resourceHeight = 0.2; // Примерная высота кирпича
+            } else if (resourceType === 'small-wall') {
+                resourceHeight = 1.0; // Примерная высота стены
             }
+
 
             resourceMesh.position.set(placementX, highestY + resourceHeight / 2, placementZ);
             // Ориентируем бревна горизонтально для строительства, камни могут быть случайными
-            if (resourceType === 'log') {
+            if (resourceType === 'log' || resourceType === 'plank' || resourceType === 'small-wall') {
                 resourceMesh.rotation.set(0, player.rotation.y, Math.PI / 2); // Лежит плашмя, ориентировано по игроку
             } else {
                 resourceMesh.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
@@ -1820,37 +2058,6 @@
             scene.add(hemisphereLight);
         }
 
-        /**
-         * Настраивает обработчики событий для управления мышью и клавиатурой.
-         */
-        function setupControls() {
-            renderer.domElement.addEventListener('mousedown', onMouseDown);
-            renderer.domElement.addEventListener('mousemove', onMouseMove);
-            renderer.domElement.addEventListener('mouseup', onMouseUp);
-            renderer.domElement.addEventListener('wheel', onWheel);
-            window.addEventListener('resize', onWindowResize);
-
-            window.addEventListener('keydown', onKeyDown);
-            window.addEventListener('keyup', onKeyUp);
-
-            const dayNightSlider = document.getElementById('dayNightSlider');
-            if (dayNightSlider) {
-                dayNightSlider.addEventListener('input', (event) => {
-                    isManualTimeControl = true; // Пользователь вручную изменяет время
-                    transitionProgress = event.target.value / 100;
-                    updateDayNightVisuals(transitionProgress); // Обновляем визуальные эффекты немедленно
-                });
-                dayNightSlider.addEventListener('mousedown', () => {
-                    isSliderDragging = true; // Начало перетаскивания
-                    isManualTimeControl = true; // Пользователь вручную изменяет время
-                });
-                dayNightSlider.addEventListener('mouseup', () => {
-                    isSliderDragging = false; // Конец перетаскивания
-                    // isManualTimeControl остается true, чтобы сохранить ручную настройку
-                });
-            }
-        }
-
         // --- Обработчики событий ---
 
         function onKeyDown(event) {
@@ -1858,6 +2065,10 @@
             if (event.code === 'KeyE') { // Клавиша E для взаимодействия
                 console.log("Клавиша 'E' нажата.");
                 handleInteraction();
+            } else if (event.code === 'KeyI') { // Клавиша I для инвентаря
+                toggleInventory();
+            } else if (event.code === 'KeyC') { // Клавиша C для крафта
+                toggleCrafting();
             }
         }
 
@@ -1917,6 +2128,50 @@
         }
 
         /**
+         * Обрабатывает изменение размера окна, чтобы сохранить правильное соотношение сторон рендерера и камеры.
+         */
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        /**
+         * Настраивает обработчики событий для управления мышью и клавиатурой.
+         */
+        function setupControls() {
+            renderer.domElement.addEventListener('mousedown', onMouseDown);
+            renderer.domElement.addEventListener('mousemove', onMouseMove);
+            renderer.domElement.addEventListener('mouseup', onMouseUp);
+            renderer.domElement.addEventListener('wheel', onWheel);
+            window.addEventListener('resize', onWindowResize); /* Moved this function definition here */
+
+            window.addEventListener('keydown', onKeyDown);
+            window.addEventListener('keyup', onKeyUp);
+
+            const dayNightSlider = document.getElementById('dayNightSlider');
+            if (dayNightSlider) {
+                dayNightSlider.addEventListener('input', (event) => {
+                    isManualTimeControl = true; // Пользователь вручную изменяет время
+                    transitionProgress = event.target.value / 100;
+                    updateDayNightVisuals(transitionProgress); // Обновляем визуальные эффекты немедленно
+                });
+                dayNightSlider.addEventListener('mousedown', () => {
+                    isSliderDragging = true; // Начало перетаскивания
+                    isManualTimeControl = true; // Пользователь вручную изменяет время
+                });
+                dayNightSlider.addEventListener('mouseup', () => {
+                    isSliderDragging = false; // Конец перетаскивания
+                    // isManualTimeControl остается true, чтобы сохранить ручную настройку
+                });
+            }
+
+            document.getElementById('toggle-inventory-button').addEventListener('click', toggleInventory);
+            document.getElementById('toggle-crafting-button').addEventListener('click', toggleCrafting);
+            document.getElementById('crafting-close-button').addEventListener('click', closeCraftingMenu);
+        }
+
+        /**
          * Обрабатывает взаимодействие игрока (подбор/выгрузка ресурса).
          */
         function handleInteraction() {
@@ -1929,10 +2184,12 @@
                     console.log('Игрок держит бревно. Расстояние до поленницы (для выгрузки): ' + distanceToLogPile.toFixed(2));
                     if (distanceToLogPile < interactDistance + 2) { 
                         player.userData.hand.remove(currentHeldResource);
-                        addLogToPile(currentHeldResource); 
-                        collectedLogsCount++;
-                        document.getElementById('collectedLogsCount').textContent = collectedLogsCount;
-                        console.log('Бревно выгружено! Всего собрано: ' + collectedLogsCount);
+                        // currentHeldResource.geometry.dispose(); // Освобождаем память
+                        // currentHeldResource.material.dispose();
+                        // scene.remove(currentHeldResource); // Удаляем из сцены, так как он больше не нужен как отдельный объект
+                        playerInventory.log++;
+                        addLogToPile(currentHeldResource); // Добавляем в кучу
+                        console.log('Бревно выгружено! Всего собрано: ' + playerInventory.log);
                         deposited = true;
                     } else {
                         // Игрок не рядом с поленницей, размещаем бревно для строительства
@@ -1946,10 +2203,12 @@
                     console.log('Игрок держит камень. Расстояние до кучи камней (для выгрузки): ' + distanceToStonePile.toFixed(2));
                     if (distanceToStonePile < interactDistance + 2) { 
                         player.userData.hand.remove(currentHeldResource);
+                        // currentHeldResource.geometry.dispose();
+                        // currentHeldResource.material.dispose();
+                        // scene.remove(currentHeldResource);
+                        playerInventory.stone++;
                         addStoneToPile(currentHeldResource);
-                        collectedStonesCount++;
-                        document.getElementById('collectedStonesCount').textContent = collectedStonesCount;
-                        console.log('Камень выгружен! Всего собрано: ' + collectedStonesCount);
+                        console.log('Камень выгружен! Всего собрано: ' + playerInventory.stone);
                         deposited = true;
                     } else {
                         // Игрок не рядом с кучей камней, размещаем камень для строительства
@@ -1957,12 +2216,18 @@
                         placeResourceOnGround(currentHeldResource, playerPosition, currentResourceType);
                         deposited = true; // Считаем размещение как успешное действие
                     }
+                } else if (currentResourceType === 'plank' || currentResourceType === 'brick' || currentResourceType === 'small-wall') {
+                    // Размещаем скрафченные предметы на земле
+                    player.userData.hand.remove(currentHeldResource);
+                    placeResourceOnGround(currentHeldResource, playerPosition, currentResourceType);
+                    deposited = true;
                 }
 
                 if (deposited) {
                     currentHeldResource = null;
                     playerHasResource = false;
                     currentResourceType = null;
+                    updateInventoryUI(); // Обновляем UI инвентаря
                 }
             } else {
                 // Игрок не держит ресурс, пытается подобрать его
@@ -1978,7 +2243,7 @@
                         
                         // Сбрасываем позицию и вращение, чтобы он появился в руке корректно
                         currentHeldResource.position.set(0, 0, 0); 
-                        if (currentResourceType === 'log') {
+                        if (currentResourceType === 'log' || currentResourceType === 'plank' || currentResourceType === 'small-wall') {
                             currentHeldResource.rotation.set(0, 0, Math.PI / 2); // Горизонтально в руке
                         } else {
                             currentHeldResource.rotation.set(0, 0, 0); // Без случайного вращения в руке
@@ -1994,21 +2259,19 @@
                     }
                 }
 
-                // Если не подобрал размещенный блок, ищем дерево для бревна
+                // Если не подобрал размещенный блок, ищем собираемые ресурсы
                 if (!pickedUp) {
+                    // Поиск дерева для бревна
                     for (let i = 0; i < collectibleTrees.length; i++) {
                         const tree = collectibleTrees[i];
-                        if (tree.userData.isCollectible && tree.userData.logsRemaining > 0) {
+                        if (tree.userData.isCollectible && tree.userData.collectibleAmount > 0) {
                             const distanceToTree = playerPosition.distanceTo(tree.position);
-                            console.log('Расстояние до дерева (для подбора): ' + distanceToTree.toFixed(2) + '. Бревна остались: ' + tree.userData.logsRemaining);
+                            console.log('Расстояние до дерева (для подбора): ' + distanceToTree.toFixed(2) + '. Бревна остались: ' + tree.userData.collectibleAmount);
                             if (distanceToTree < interactDistance) {
-                                currentHeldResource = createCollectibleLog();
-                                player.userData.hand.add(currentHeldResource);
-                                playerHasResource = true;
-                                currentResourceType = 'log';
-                                tree.userData.logsRemaining--;
+                                playerInventory.log++;
+                                tree.userData.collectibleAmount--;
                                 
-                                if (tree.userData.logsRemaining === 0) {
+                                if (tree.userData.collectibleAmount === 0) {
                                     console.log('Дерево превращается в пенек!');
                                     tree.userData.originalFoliage.forEach(foliagePart => {
                                         tree.remove(foliagePart);
@@ -2033,31 +2296,111 @@
                 if (!pickedUp) {
                     for (let i = 0; i < collectibleStones.length; i++) {
                         const stone = collectibleStones[i];
-                        if (stone.userData.isCollectible && stone.userData.logsRemaining > 0) { // Используем logsRemaining как счетчик "ударов" для камня
+                        if (stone.userData.isCollectible && stone.userData.collectibleAmount > 0) { 
                             const distanceToStone = playerPosition.distanceTo(stone.position);
-                            console.log('Расстояние до камня (для подбора): ' + distanceToStone.toFixed(2) + '. Камни остались: ' + stone.userData.logsRemaining);
+                            console.log('Расстояние до камня (для подбора): ' + distanceToStone.toFixed(2) + '. Камни остались: ' + stone.userData.collectibleAmount);
                             if (distanceToStone < interactDistance) {
-                                currentHeldResource = createCollectibleStone();
-                                player.userData.hand.add(currentHeldResource);
-                                playerHasResource = true;
-                                currentResourceType = 'stone';
-                                stone.userData.logsRemaining--;
+                                playerInventory.stone++;
+                                stone.userData.collectibleAmount--;
 
-                                if (stone.userData.logsRemaining === 0) {
+                                if (stone.userData.collectibleAmount === 0) {
                                     console.log('Камень исчез!');
                                     scene.remove(stone); // Камень пропадает
                                     stone.userData.isCollectible = false; // Больше не собираемый
-                                    // Удаляем из массива, так как он исчез
-                                    collectibleStones.splice(i, 1);
+                                    collectibleStones.splice(i, 1); // Удаляем из массива, так как он исчез
                                 }
                                 pickedUp = true;
                                 break;
                             }
                         } else if (stone.userData.isCollectible === false) { // Проверка на уже исчезнувший камень
-                             const distanceToStone = playerPosition.distanceTo(stone.position);
-                             if (distanceToStone < interactDistance) {
-                                 console.log('Этот камень уже исчерпан и исчез.');
-                             }
+                               const distanceToStone = playerPosition.distanceTo(stone.position);
+                               if (distanceToStone < interactDistance) {
+                                   console.log('Этот камень уже исчерпан и исчез.');
+                               }
+                        }
+                    }
+                }
+
+                // Если не подобрал камень, ищем ягоды
+                if (!pickedUp) {
+                    for (let i = 0; i < collectibleBerryBushes.length; i++) {
+                        const bush = collectibleBerryBushes[i];
+                        if (bush.userData.isCollectible && bush.userData.collectibleAmount > 0) {
+                            const distanceToBush = playerPosition.distanceTo(bush.position);
+                            if (distanceToBush < interactDistance) {
+                                playerInventory.berry++;
+                                bush.userData.collectibleAmount--;
+                                if (bush.userData.collectibleAmount === 0) {
+                                    scene.remove(bush);
+                                    bush.userData.isCollectible = false;
+                                    collectibleBerryBushes.splice(i, 1);
+                                }
+                                pickedUp = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                // Если не подобрал ягоды, ищем руду
+                if (!pickedUp) {
+                    for (let i = 0; i < collectibleMetalOres.length; i++) {
+                        const ore = collectibleMetalOres[i];
+                        if (ore.userData.isCollectible && ore.userData.collectibleAmount > 0) {
+                            const distanceToOre = playerPosition.distanceTo(ore.position);
+                            if (distanceToOre < interactDistance) {
+                                playerInventory.ore++;
+                                ore.userData.collectibleAmount--;
+                                if (ore.userData.collectibleAmount === 0) {
+                                    scene.remove(ore);
+                                    ore.userData.isCollectible = false;
+                                    collectibleMetalOres.splice(i, 1);
+                                }
+                                pickedUp = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                // Если не подобрал руду, ищем цветы
+                if (!pickedUp) {
+                    for (let i = 0; i < collectibleFlowers.length; i++) {
+                        const flower = collectibleFlowers[i];
+                        if (flower.userData.isCollectible && flower.userData.collectibleAmount > 0) {
+                            const distanceToFlower = playerPosition.distanceTo(flower.position);
+                            if (distanceToFlower < interactDistance) {
+                                playerInventory.flower++;
+                                flower.userData.collectibleAmount--;
+                                if (flower.userData.collectibleAmount === 0) {
+                                    scene.remove(flower);
+                                    flower.userData.isCollectible = false;
+                                    collectibleFlowers.splice(i, 1);
+                                }
+                                pickedUp = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                // Если не подобрал цветы, ищем грибы
+                if (!pickedUp) {
+                    for (let i = 0; i < collectibleMushrooms.length; i++) {
+                        const mushroom = collectibleMushrooms[i];
+                        if (mushroom.userData.isCollectible && mushroom.userData.collectibleAmount > 0) {
+                            const distanceToMushroom = playerPosition.distanceTo(mushroom.position);
+                            if (distanceToMushroom < interactDistance) {
+                                playerInventory.mushroom++;
+                                mushroom.userData.collectibleAmount--;
+                                if (mushroom.userData.collectibleAmount === 0) {
+                                    scene.remove(mushroom);
+                                    mushroom.userData.isCollectible = false;
+                                    collectibleMushrooms.splice(i, 1);
+                                }
+                                pickedUp = true;
+                                break;
+                            }
                         }
                     }
                 }
@@ -2065,6 +2408,7 @@
                 if (!pickedUp) {
                     console.log('Нет ресурсов для подбора поблизости или вы слишком далеко. Подойдите к дереву или камню.');
                 }
+                updateInventoryUI(); // Обновляем UI инвентаря
             }
         }
 
@@ -2155,7 +2499,7 @@
                 tree.scale.setScalar(0.7 + Math.random() * 0.6); 
                 tree.userData.isCollectible = true;
                 tree.userData.type = 'log';
-                tree.userData.logsRemaining = 10;
+                tree.userData.collectibleAmount = 10; // 10 бревен с дерева
                 collectibleTrees.push(tree);
                 scene.add(tree);
             }
@@ -2355,6 +2699,10 @@
                 flowerGroup.position.set(flowerX, 0, flowerZ);
                 flowerGroup.rotation.y = Math.random() * Math.PI * 2; // Случайное вращение
                 flowerGroup.scale.setScalar(0.8 + Math.random() * 0.4); // Случайный размер
+                flowerGroup.userData.isCollectible = true;
+                flowerGroup.userData.type = 'flower';
+                flowerGroup.userData.collectibleAmount = 1;
+                collectibleFlowers.push(flowerGroup);
                 scene.add(flowerGroup);
             }
         }
@@ -2506,6 +2854,10 @@
                 mushroomGroup.position.set(mushroomX, 0, mushroomZ);
                 mushroomGroup.rotation.y = Math.random() * Math.PI * 2;
                 mushroomGroup.scale.setScalar(0.8 + Math.random() * 0.4);
+                mushroomGroup.userData.isCollectible = true;
+                mushroomGroup.userData.type = 'mushroom';
+                mushroomGroup.userData.collectibleAmount = 1;
+                collectibleMushrooms.push(mushroomGroup);
                 scene.add(mushroomGroup);
             }
         }
@@ -2640,14 +2992,113 @@
             return shelterGroup;
         }
 
+        /**
+         * Создает ягодные кусты.
+         */
+        function createBerryBushes() {
+            const numBushes = 40;
+            const bushMaterial = new THREE.MeshStandardMaterial({ color: 0x32CD32, roughness: 0.7 }); // Зеленый куст
+            const berryMaterial = new THREE.MeshStandardMaterial({ color: 0xFF0000, roughness: 0.5 }); // Красные ягоды
+
+            const exclusionBuffer = 5; // Буфер для избегания построек
+
+            for (let i = 0; i < numBushes; i++) {
+                const bushGroup = new THREE.Group();
+                let bushX, bushZ;
+                let isValidPosition = false;
+
+                while (!isValidPosition) {
+                    bushX = -forestRange + Math.random() * (forestRange * 2);
+                    bushZ = -forestRange + Math.random() * (forestRange * 2);
+
+                    const distanceToHouse = Math.sqrt(Math.pow(bushX, 2) + Math.pow(bushZ, 2));
+                    const distanceToLake = Math.sqrt(Math.pow(bushX - lakeCenterX, 2) + Math.pow(bushZ - lakeCenterZ, 2));
+                    const distanceToBarn = Math.sqrt(Math.pow(bushX - (-40), 2) + Math.pow(bushZ - 40, 2));
+                    const distanceToQuarry = Math.sqrt(Math.pow(bushX - 40, 2) + Math.pow(bushZ - (-40), 2));
+
+                    if (distanceToHouse > exclusionBuffer && distanceToLake > (lakeRadius + exclusionBuffer) && distanceToBarn > exclusionBuffer && distanceToQuarry > exclusionBuffer) {
+                        isValidPosition = true;
+                    }
+                }
+
+                // Основная форма куста (несколько сфер)
+                const numBushParts = 2 + Math.floor(Math.random() * 2);
+                for (let j = 0; j < numBushParts; j++) {
+                    const bushPart = new THREE.Mesh(new THREE.SphereGeometry(0.5 + Math.random() * 0.3, 12, 12), bushMaterial);
+                    bushPart.position.set((Math.random() - 0.5) * 0.8, (Math.random() * 0.3), (Math.random() - 0.5) * 0.8);
+                    bushPart.castShadow = true;
+                    bushPart.receiveShadow = true;
+                    bushGroup.add(bushPart);
+                }
+
+                // Ягоды на кусте
+                const numBerries = 5 + Math.floor(Math.random() * 5);
+                for (let k = 0; k < numBerries; k++) {
+                    const berry = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 8), berryMaterial);
+                    berry.position.set(
+                        (Math.random() - 0.5) * 0.8,
+                        0.5 + Math.random() * 0.3,
+                        (Math.random() - 0.5) * 0.8
+                    );
+                    berry.castShadow = true;
+                    bushGroup.add(berry);
+                }
+
+                bushGroup.position.set(bushX, 0, bushZ);
+                bushGroup.scale.setScalar(0.8 + Math.random() * 0.4);
+                bushGroup.userData.isCollectible = true;
+                bushGroup.userData.type = 'berry';
+                bushGroup.userData.collectibleAmount = 3; // 3 ягоды с куста
+                collectibleBerryBushes.push(bushGroup);
+                scene.add(bushGroup);
+            }
+        }
 
         /**
-         * Обрабатывает изменение размера окна, чтобы сохранить правильное соотношение сторон рендерера и камеры.
+         * Создает месторождения металлической руды.
          */
-        function onWindowResize() {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
+        function createMetalOres() {
+            const numOres = 20;
+            const oreMaterial = new THREE.MeshStandardMaterial({ color: 0x606060, roughness: 0.9, metalness: 0.7 }); // Серый с металлическим блеском
+
+            const exclusionBuffer = 8; // Буфер для избегания построек и леса
+
+            for (let i = 0; i < numOres; i++) {
+                const oreGroup = new THREE.Group();
+                let oreX, oreZ;
+                let isValidPosition = false;
+
+                while (!isValidPosition) {
+                    oreX = -forestRange + Math.random() * (forestRange * 2);
+                    oreZ = -forestRange + Math.random() * (forestRange * 2);
+
+                    const distanceToHouse = Math.sqrt(Math.pow(oreX, 2) + Math.pow(oreZ, 2));
+                    const distanceToLake = Math.sqrt(Math.pow(oreX - lakeCenterX, 2) + Math.pow(oreZ - lakeCenterZ, 2));
+                    const distanceToBarn = Math.sqrt(Math.pow(oreX - (-40), 2) + Math.pow(oreZ - 40, 2));
+                    const distanceToQuarry = Math.sqrt(Math.pow(oreX - 40, 2) + Math.pow(oreZ - (-40), 2));
+                    const isNearForest = (oreX >= 60 - exclusionBuffer && oreX <= 90 + exclusionBuffer && oreZ >= -90 - exclusionBuffer && oreZ <= -60 + exclusionBuffer);
+
+                    if (distanceToHouse > exclusionBuffer && distanceToLake > (lakeRadius + exclusionBuffer) && distanceToBarn > exclusionBuffer && distanceToQuarry > exclusionBuffer && !isNearForest) {
+                        isValidPosition = true;
+                    }
+                }
+
+                const size = 0.8 + Math.random() * 0.5;
+                const oreGeometry = new THREE.DodecahedronGeometry(size, 0); // Неправильная форма
+                const ore = new THREE.Mesh(oreGeometry, oreMaterial);
+                ore.position.y = size / 2;
+                ore.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
+                ore.castShadow = true;
+                ore.receiveShadow = true;
+                oreGroup.add(ore);
+
+                oreGroup.position.set(oreX, 0, oreZ);
+                oreGroup.userData.isCollectible = true;
+                oreGroup.userData.type = 'ore';
+                oreGroup.userData.collectibleAmount = 2; // 2 руды с месторождения
+                collectibleMetalOres.push(oreGroup);
+                scene.add(oreGroup);
+            }
         }
 
         /**
@@ -2925,6 +3376,241 @@
             player.position.copy(playerPosition);
         }
 
+        /**
+         * Обновляет отображение инвентаря.
+         */
+        function updateInventoryUI() {
+            const inventoryList = document.getElementById('inventory-list');
+            inventoryList.innerHTML = ''; // Очищаем список
+
+            for (const itemType in playerInventory) {
+                if (playerInventory[itemType] > 0) {
+                    const listItem = document.createElement('li');
+                    let itemName = itemType;
+                    // Переводим названия ресурсов для отображения
+                    switch(itemType) {
+                        case 'log': itemName = 'Бревна'; break;
+                        case 'stone': itemName = 'Камни'; break;
+                        case 'berry': itemName = 'Ягоды'; break;
+                        case 'flower': itemName = 'Цветы'; break;
+                        case 'mushroom': itemName = 'Грибы'; break;
+                        case 'ore': itemName = 'Руда'; break;
+                        case 'plank': itemName = 'Доски'; break;
+                        case 'brick': itemName = 'Кирпичи'; break;
+                        case 'small-wall': itemName = 'Малые стены'; break;
+                        case 'basic-pickaxe': itemName = 'Базовая кирка'; break;
+                    }
+                    listItem.textContent = `${itemName}: ${playerInventory[itemType]}`;
+                    inventoryList.appendChild(listItem);
+                }
+            }
+            // Обновляем старые счетчики (можно удалить, если они больше не нужны)
+            document.getElementById('collectedLogsCount').textContent = playerInventory.log;
+            document.getElementById('collectedStonesCount').textContent = playerInventory.stone;
+        }
+
+        /**
+         * Переключает видимость инвентаря.
+         */
+        function toggleInventory() {
+            const inventoryUI = document.getElementById('inventory-ui');
+            const craftingUI = document.getElementById('crafting-ui');
+
+            if (inventoryUI.style.display === 'block') {
+                inventoryUI.style.display = 'none';
+            } else {
+                inventoryUI.style.display = 'block';
+                craftingUI.style.display = 'none'; // Закрываем крафт, если открыт
+                updateInventoryUI(); // Обновляем UI при открытии
+            }
+        }
+
+        /**
+         * Переключает видимость меню крафта.
+         */
+        function toggleCrafting() {
+            const craftingUI = document.getElementById('crafting-ui');
+            const inventoryUI = document.getElementById('inventory-ui');
+
+            if (craftingUI.style.display === 'flex') {
+                craftingUI.style.display = 'none';
+            } else {
+                craftingUI.style.display = 'flex';
+                inventoryUI.style.display = 'none'; // Закрываем инвентарь, если открыт
+                updateCraftingRecipesUI(); // Обновляем UI рецептов при открытии
+            }
+        }
+
+        /**
+         * Закрывает меню крафта.
+         */
+        function closeCraftingMenu() {
+            document.getElementById('crafting-ui').style.display = 'none';
+        }
+
+        /**
+         * Обновляет отображение рецептов крафта и их доступность.
+         */
+        function updateCraftingRecipesUI() {
+            const craftingRecipesDiv = document.getElementById('crafting-recipes');
+            craftingRecipesDiv.innerHTML = ''; // Очищаем список
+
+            craftingRecipes.forEach(recipe => {
+                const recipeDiv = document.createElement('div');
+                recipeDiv.className = 'crafting-recipe';
+
+                const recipeHeader = document.createElement('div');
+                recipeHeader.className = 'recipe-header';
+                recipeHeader.innerHTML = `<strong>${recipe.name}</strong><span>x${recipe.output.amount}</span>`;
+                recipeDiv.appendChild(recipeHeader);
+
+                const ingredientsList = document.createElement('div');
+                ingredientsList.className = 'recipe-ingredients';
+                let ingredientsText = 'Ингредиенты: ';
+                let canCraft = true;
+                for (const ingredient in recipe.ingredients) {
+                    const required = recipe.ingredients[ingredient];
+                    const possessed = playerInventory[ingredient] || 0;
+                    let ingredientName = ingredient;
+                    switch(ingredient) {
+                        case 'log': ingredientName = 'Бревно'; break;
+                        case 'stone': ingredientName = 'Камень'; break;
+                        case 'plank': ingredientName = 'Доска'; break;
+                        case 'brick': ingredientName = 'Кирпич'; break;
+                        case 'berry': ingredientName = 'Ягода'; break;
+                        case 'flower': ingredientName = 'Цветок'; break;
+                        case 'mushroom': ingredientName = 'Гриб'; break;
+                        case 'ore': ingredientName = 'Руда'; break;
+                    }
+                    ingredientsText += `${ingredientName} (${possessed}/${required}) `;
+                    if (possessed < required) {
+                        canCraft = false;
+                    }
+                }
+                ingredientsList.textContent = ingredientsText;
+                recipeDiv.appendChild(ingredientsList);
+
+                const craftButton = document.createElement('button');
+                craftButton.className = 'craft-button';
+                craftButton.textContent = 'Создать';
+                craftButton.disabled = !canCraft;
+                craftButton.onclick = () => craftItem(recipe.id);
+                recipeDiv.appendChild(craftButton);
+
+                craftingRecipesDiv.appendChild(recipeDiv);
+            });
+        }
+
+        /**
+         * Выполняет крафт предмета.
+         * @param {string} recipeId - ID рецепта для крафта.
+         */
+        function craftItem(recipeId) {
+            const recipe = craftingRecipes.find(r => r.id === recipeId);
+            if (!recipe) {
+                console.error('Рецепт не найден:', recipeId);
+                return;
+            }
+
+            let canCraft = true;
+            for (const ingredient in recipe.ingredients) {
+                if ((playerInventory[ingredient] || 0) < recipe.ingredients[ingredient]) {
+                    canCraft = false;
+                    break;
+                }
+            }
+
+            if (canCraft) {
+                for (const ingredient in recipe.ingredients) {
+                    playerInventory[ingredient] -= recipe.ingredients[ingredient];
+                }
+                playerInventory[recipe.output.type] = (playerInventory[recipe.output.type] || 0) + recipe.output.amount;
+                console.log(`Создан ${recipe.name}! Инвентарь:`, playerInventory);
+
+                // Если скрафчен предмет, который можно держать (например, стена), добавляем его в руку
+                if (recipe.output.type === 'plank') {
+                    if (!playerHasResource) {
+                        currentHeldResource = createCraftedPlank();
+                        player.userData.hand.add(currentHeldResource);
+                        playerHasResource = true;
+                        currentResourceType = 'plank';
+                        playerInventory.plank--; // Вычитаем из инвентаря, так как теперь он в руке
+                    }
+                } else if (recipe.output.type === 'brick') {
+                    if (!playerHasResource) {
+                        currentHeldResource = createCraftedBrick();
+                        player.userData.hand.add(currentHeldResource);
+                        playerHasResource = true;
+                        currentResourceType = 'brick';
+                        playerInventory.brick--;
+                    }
+                } else if (recipe.output.type === 'small-wall') {
+                    if (!playerHasResource) {
+                        currentHeldResource = createCraftedSmallWall();
+                        player.userData.hand.add(currentHeldResource);
+                        playerHasResource = true;
+                        currentResourceType = 'small-wall';
+                        playerInventory['small-wall']--;
+                    }
+                }
+                // Для инструментов (как кирка), просто добавляем в инвентарь, не в руку
+                // Если захотим, можно добавить слот для инструмента и возможность его "экипировать"
+
+                updateInventoryUI();
+                updateCraftingRecipesUI();
+            } else {
+                console.log('Недостаточно ресурсов для крафта:', recipe.name);
+            }
+        }
+
+        /**
+         * Создает меш скрафченной доски.
+         * @returns {THREE.Mesh} Меш доски.
+         */
+        function createCraftedPlank() {
+            const plankGeometry = new THREE.BoxGeometry(1.0, 0.15, 0.3); // Длина, толщина, ширина
+            const plankMaterial = new THREE.MeshStandardMaterial({
+                map: woodDiffuseTexture,
+                bumpMap: woodBumpTexture,
+                color: 0xdeb887, // Более светлый цвет дерева
+                roughness: 0.6
+            });
+            const plank = new THREE.Mesh(plankGeometry, plankMaterial);
+            plank.castShadow = true;
+            plank.receiveShadow = true;
+            plank.userData.type = 'plank';
+            return plank;
+        }
+
+        /**
+         * Создает меш скрафченного кирпича.
+         * @returns {THREE.Mesh} Меш кирпича.
+         */
+        function createCraftedBrick() {
+            const brickGeometry = new THREE.BoxGeometry(0.5, 0.2, 0.25);
+            const brickMaterial = new THREE.MeshStandardMaterial({ color: 0x8B4513, roughness: 0.7 });
+            const brick = new THREE.Mesh(brickGeometry, brickMaterial);
+            brick.castShadow = true;
+            brick.receiveShadow = true;
+            brick.userData.type = 'brick';
+            return brick;
+        }
+
+        /**
+         * Создает меш скрафченной малой стены.
+         * @returns {THREE.Mesh} Меш малой стены.
+         */
+        function createCraftedSmallWall() {
+            const wallGeometry = new THREE.BoxGeometry(2.0, 1.0, 0.2);
+            const wallMaterial = new THREE.MeshStandardMaterial({ color: 0xdeb887, roughness: 0.7 }); // Цвет как у досок
+            const wall = new THREE.Mesh(wallGeometry, wallMaterial);
+            wall.castShadow = true;
+            wall.receiveShadow = true;
+            wall.userData.type = 'small-wall';
+            return wall;
+        }
+
+
         // --- Функция инициализации ---
         // Эта функция вызывается один раз, когда окно полностью загрузится.
         function init() {
@@ -2965,9 +3651,9 @@
             createHouse();
             createPlayer();
             createGround();
-            createTrees();  // Теперь эта функция создает все лиственные и еловые деревья как собираемые
-            createRocks();  // Теперь эта функция создает все камни как собираемые
-            createLake();    
+            createTrees(); // Теперь эта функция создает все лиственные и еловые деревья как собираемые
+            createRocks(); // Теперь эта функция создает все камни как собираемые
+            createLake();   
             createSmokeParticles();
             createLakeVegetation(); 
             createPierAndBoat(); 
@@ -2981,10 +3667,10 @@
             createBird(); // Добавляем птицу
             createFireflies(); // Добавляем светлячков
             createDenseForestWithDeer(); // Создаем густой лес с оленями
-            createFlowers(); // Создаем цветы
-            createMushrooms(); // Добавляем грибы
-            createBoulders(); // Добавляем большие валуны
-            createFallenLogs(); // Добавляем упавшие бревна
+            createFlowers(); // Создаем цветы (теперь собираемые)
+            createMushrooms(); // Добавляем грибы (теперь собираемые)
+            createBerryBushes(); // Добавляем ягодные кусты
+            createMetalOres(); // Добавляем месторождения руды
 
             // Создаем сарайчик (лесопилку)
             const barn = createBarn();
@@ -3014,6 +3700,8 @@
             // Поскольку цикл автоматический, просто устанавливаем начальное состояние иконки
             const dayNightIcon = document.getElementById('dayNightIcon');
             dayNightIcon.textContent = '☀️'; // Начинаем с дня
+
+            updateInventoryUI(); // Обновляем инвентарь при запуске
 
             // Запускаем цикл анимации
             animate();
