@@ -203,6 +203,11 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            cursor: pointer; /* Сделать элементы инвентаря кликабельными */
+        }
+
+        #inventory-list li:hover {
+            background: #e0e0e0;
         }
 
         #crafting-ui {
@@ -1827,6 +1832,26 @@
         }
 
         /**
+         * Создает меш бревна для удержания игроком.
+         * @returns {THREE.Mesh} Меш бревна.
+         */
+        function createHeldLog() {
+            const logGeometry = new THREE.CylinderGeometry(0.15, 0.15, 1.0, 8);
+            const logMaterialCollectible = new THREE.MeshStandardMaterial({
+                map: woodDiffuseTexture,
+                bumpMap: woodBumpTexture,
+                color: 0x654321, // Keep the base color for tinting
+                roughness: 0.8
+            });
+            const log = new THREE.Mesh(logGeometry, logMaterialCollectible);
+            log.rotation.z = Math.PI / 2; // Горизонтально
+            log.castShadow = true;
+            log.receiveShadow = true;
+            log.userData.type = 'log';
+            return log;
+        }
+
+        /**
          * Добавляет бревно к поленнице.
          * @param {THREE.Mesh} logMesh - Меш бревна, которое нужно добавить.
          */
@@ -1939,6 +1964,20 @@
             stone.receiveShadow = true;
             stone.userData.type = 'stone'; // Помечаем тип ресурса
             stone.userData.collectibleAmount = 1; // Один камень за взаимодействие
+            return stone;
+        }
+
+        /**
+         * Создает меш камня для удержания игроком.
+         * @returns {THREE.Mesh} Меш камня.
+         */
+        function createHeldStone() {
+            const stoneGeometry = new THREE.SphereGeometry(0.3 + Math.random() * 0.2, 8, 8);
+            const stoneMaterial = new THREE.MeshStandardMaterial({ color: 0x808080, roughness: 0.9, metalness: 0.0 });
+            const stone = new THREE.Mesh(stoneGeometry, stoneMaterial);
+            stone.castShadow = true;
+            stone.receiveShadow = true;
+            stone.userData.type = 'stone';
             return stone;
         }
 
@@ -3435,6 +3474,8 @@
             for (const itemType in playerInventory) {
                 if (playerInventory[itemType] > 0) {
                     const listItem = document.createElement('li');
+                    listItem.dataset.itemType = itemType; // Сохраняем тип предмета в data-атрибуте
+                    
                     let itemName = itemType;
                     // Переводим названия ресурсов для отображения
                     switch(itemType) {
@@ -3450,6 +3491,7 @@
                         case 'basic-pickaxe': itemName = 'Базовая кирка'; break;
                     }
                     listItem.textContent = `${itemName}: ${playerInventory[itemType]}`;
+                    listItem.addEventListener('click', handleInventoryItemClick); // Добавляем обработчик клика
                     inventoryList.appendChild(listItem);
                 }
             }
@@ -3457,6 +3499,59 @@
             document.getElementById('collectedLogsCount').textContent = playerInventory.log;
             document.getElementById('collectedStonesCount').textContent = playerInventory.stone;
         }
+
+        /**
+         * Обрабатывает клик по элементу инвентаря.
+         * @param {Event} event - Событие клика.
+         */
+        function handleInventoryItemClick(event) {
+            if (playerHasResource) {
+                console.log('Игрок уже держит предмет. Сначала положите его.');
+                return;
+            }
+
+            const itemType = event.target.dataset.itemType;
+            if (playerInventory[itemType] <= 0) {
+                console.log('Нет такого предмета в инвентаре.');
+                return;
+            }
+
+            let heldMesh = null;
+            let isPlacable = true; // Флаг, указывающий, можно ли разместить предмет в 3D мире
+
+            switch (itemType) {
+                case 'log':
+                    heldMesh = createHeldLog();
+                    break;
+                case 'stone':
+                    heldMesh = createHeldStone();
+                    break;
+                case 'plank':
+                    heldMesh = createCraftedPlank();
+                    break;
+                case 'brick':
+                    heldMesh = createCraftedBrick();
+                    break;
+                case 'small-wall':
+                    heldMesh = createCraftedSmallWall();
+                    break;
+                default:
+                    isPlacable = false; // Предмет не может быть размещен в 3D мире (например, ягоды, руда, инструменты)
+                    console.log(`Предмет ${itemType} не может быть взят в руку.`);
+                    break;
+            }
+
+            if (isPlacable && heldMesh) {
+                player.userData.hand.add(heldMesh);
+                currentHeldResource = heldMesh;
+                playerHasResource = true;
+                currentResourceType = itemType;
+                playerInventory[itemType]--; // Уменьшаем количество в инвентаре
+                updateInventoryUI(); // Обновляем инвентарь UI
+                console.log(`Предмет ${itemType} взят в руку.`);
+            }
+        }
+
 
         /**
          * Переключает видимость инвентаря.
@@ -3578,12 +3673,15 @@
 
                 // Если скрафчен предмет, который можно держать (например, стена), добавляем его в руку
                 if (recipe.output.type === 'plank') {
+                    // Если игрок ничего не держит, сразу даем ему скрафченный предмет в руку
                     if (!playerHasResource) {
                         currentHeldResource = createCraftedPlank();
                         player.userData.hand.add(currentHeldResource);
                         playerHasResource = true;
                         currentResourceType = 'plank';
-                        playerInventory.plank--; // Вычитаем из инвентаря, так как теперь он в руке
+                        // Так как предмет уже в руке, уменьшаем его количество в инвентаре
+                        // Это предотвращает дублирование, если игрок сразу бросит предмет
+                        playerInventory.plank--; 
                     }
                 } else if (recipe.output.type === 'brick') {
                     if (!playerHasResource) {
